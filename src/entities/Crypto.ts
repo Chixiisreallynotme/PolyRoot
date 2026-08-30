@@ -21,6 +21,8 @@ export interface CryptoInstance {
   shootCooldown: number
   animTime: number
   rotationY: number
+  y?: number
+  floorY?: number
 }
 
 export interface CryptoDef {

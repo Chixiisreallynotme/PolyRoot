@@ -11,6 +11,7 @@ uniform float uFogDensity; // 0.015
 uniform vec3 uFogColor; // vec3(0.102, 0.227, 0.184)
 uniform float uGlitch; // 0.0 → 1.0
 uniform float uTrauma; // 0.0 → 0.8
+uniform float uShaderMode; // 1.0 = CRT PS1, 0.0 = Sharp
 
 varying vec2 vUv;
 
@@ -54,6 +55,16 @@ void main() {
     color = texture2D(tDiffuse, uv);
   }
 
+  // Sharp mode bypass: render crisp full-fidelity RGB
+  if (uShaderMode < 0.5) {
+    if (uGlitch > 0.2) {
+      color.rgb = mix(color.rgb, vec3(0.9, 0.15, 0.15), clamp(uGlitch * 0.45, 0.0, 0.5));
+    }
+    gl_FragColor = color;
+    return;
+  }
+
+  // CRT PS1 Mode:
   // 3. Fog & Tone mapping
   float fogFactor = 1.0 - exp(-uFogDensity * uFogDensity * 3.0);
   vec3 fogged = mix(color.rgb, uFogColor, fogFactor * 0.15);

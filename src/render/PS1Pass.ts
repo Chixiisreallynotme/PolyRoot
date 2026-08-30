@@ -31,6 +31,7 @@ export class PS1Pass {
         uFogColor: { value: new THREE.Color(0x1a3a2f) },
         uGlitch: { value: 0.0 },
         uTrauma: { value: 0.0 },
+        uShaderMode: { value: 1.0 },
       },
       vertexShader: ps1Vert,
       fragmentShader: ps1Frag,
@@ -42,6 +43,26 @@ export class PS1Pass {
     this.scene = new THREE.Scene()
     this.scene.add(this.quad)
     this.camera = new THREE.OrthographicCamera(-1, 1, 1, -1, 0, 1)
+  }
+
+  public getShaderMode(): 'crt' | 'sharp' {
+    const m = this.quad.material as THREE.ShaderMaterial
+    const val = m.uniforms['uShaderMode']?.value ?? 1.0
+    return val >= 0.5 ? 'crt' : 'sharp'
+  }
+
+  public setShaderMode(mode: 'crt' | 'sharp'): void {
+    const m = this.quad.material as THREE.ShaderMaterial
+    if (m.uniforms['uShaderMode']) {
+      m.uniforms['uShaderMode'].value = mode === 'crt' ? 1.0 : 0.0
+    }
+  }
+
+  public toggleShaderMode(): 'crt' | 'sharp' {
+    const current = this.getShaderMode()
+    const next = current === 'crt' ? 'sharp' : 'crt'
+    this.setShaderMode(next)
+    return next
   }
 
   triggerDamageGlitch(): void {

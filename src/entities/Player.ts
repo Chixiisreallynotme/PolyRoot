@@ -288,7 +288,7 @@ export class Player {
       b.mesh.position.z += b.vz * dt
       b.life -= dt
 
-      if (b.life <= 0 || b.mesh.position.x < 0 || b.mesh.position.x > 48 || b.mesh.position.z < 0 || b.mesh.position.z > 36) {
+      if (b.life <= 0 || b.mesh.position.x < 1.0 || b.mesh.position.x > 47.0 || b.mesh.position.z < 1.0 || b.mesh.position.z > 35.0) {
         b.active = false
         b.mesh.visible = false
       }

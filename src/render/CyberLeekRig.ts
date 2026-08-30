@@ -4,11 +4,12 @@ import * as THREE from 'three'
  * CyberLeekRig — Dedicated skeletal and procedural animation rig for Boss Tactical CyberLeek.
  * 
  * 100% faithful to character concept & artwork:
- * 1. Leaf wind wave / organic aerodynamic foliage wave with idle thoracic breathing
- * 2. Heavyweight tactical march & overclocked sprint locomotion with ground-stamping footfalls
- * 3. Dual-fist leap slam ground shockwave state machine (Crouch -> Ascent -> Overhead Hammer -> Impact)
- * 4. Asymmetrical disc windup & explosive fling throw animation with kinetic torso uncoiling
- * 5. Procedural Sawtooth zig-zag leek neck transition and dynamic pulsating glowing cyan energy fists
+ * 1. Leaner, curved stalk head with 3 swept-back green leaves and angular sunglasses.
+ * 2. Articulated segmented forearms/gauntlets with elbow joints and glowing cyan cuffs.
+ * 3. Articulated knee plates and heavy combat boots.
+ * 4. Dual-fist leap slam ground shockwave state machine (Crouch -> Ascent -> Overhead Hammer -> Impact).
+ * 5. Asymmetrical disc windup & explosive fling throw animation with kinetic torso uncoiling.
+ * 6. Procedural Sawtooth zig-zag leek crown transition and dynamic pulsating glowing cyan energy fists.
  */
 
 export type CyberLeekAnimationState =
@@ -32,20 +33,26 @@ export interface CyberLeekNodes {
   rightFist: THREE.Mesh
   leftLeg: THREE.Group
   rightLeg: THREE.Group
-  leftBoot: THREE.Mesh
-  rightBoot: THREE.Mesh
+  leftBoot: THREE.Mesh | THREE.Group
+  rightBoot: THREE.Mesh | THREE.Group
   torso?: THREE.Group
   chestPlate?: THREE.Mesh
   cyanPiping?: THREE.Mesh[]
   collar?: THREE.Mesh
   sawtoothTransition?: THREE.Object3D
-  glasses?: THREE.Mesh
+  glasses?: THREE.Group | THREE.Mesh
   mouth?: THREE.Mesh
-  belt?: THREE.Group
+  belt?: THREE.Group | THREE.Mesh
   leftPouch?: THREE.Mesh
   rightPouch?: THREE.Mesh
-  leftKnee?: THREE.Mesh
-  rightKnee?: THREE.Mesh
+  leftKnee?: THREE.Mesh | THREE.Group
+  rightKnee?: THREE.Mesh | THREE.Group
+  leftElbow?: THREE.Group | THREE.Mesh
+  rightElbow?: THREE.Group | THREE.Mesh
+  leftForearm?: THREE.Group
+  rightForearm?: THREE.Group
+  leftCuff?: THREE.Mesh
+  rightCuff?: THREE.Mesh
 }
 
 export interface CyberLeekRigConfig {
@@ -129,50 +136,74 @@ export class CyberLeekRig {
     const darkNavyMat = new THREE.MeshLambertMaterial({ color: 0x0f172a, flatShading: true })
     const cyanPipingMat = new THREE.MeshBasicMaterial({ color: 0x38bdf8 })
     const blackGlassesMat = new THREE.MeshLambertMaterial({ color: 0x050505, flatShading: true })
-    const blueLensMat = new THREE.MeshBasicMaterial({ color: 0x1e3a8a })
+    const cyanLensMat = new THREE.MeshBasicMaterial({ color: 0x00ffff })
     const energyFistMat = new THREE.MeshBasicMaterial({ color: 0x38bdf8 })
+    const bootSoleMat = new THREE.MeshLambertMaterial({ color: 0x090d16, flatShading: true })
 
-    // 1. Stalk Head
+    // ==========================================
+    // 1. LEANER, CURVED STALK HEAD & SWEPT-BACK LEAVES
+    // ==========================================
     const headGroup = new THREE.Group()
     headGroup.position.y = 3.6
     body.add(headGroup)
 
-    const stalk = new THREE.Mesh(new THREE.CylinderGeometry(0.72, 0.82, 1.8, 12), stalkPaleMat)
+    // Leaner, tapered & curved stalk geometry
+    const stalk = new THREE.Mesh(new THREE.CylinderGeometry(0.58, 0.70, 2.0, 12), stalkPaleMat)
+    stalk.position.set(0, 0, 0.05)
+    stalk.rotation.x = -0.06
     stalk.castShadow = true
     headGroup.add(stalk)
 
-    const sawtoothGeo = CyberLeekRig.createSawtoothGeometry(0.75, 0.70, 0.42, 10)
+    // Procedural Sawtooth / Crown Transition at top of stalk
+    const sawtoothGeo = CyberLeekRig.createSawtoothGeometry(0.68, 0.58, 0.40, 10)
     const sawtoothTransition = new THREE.Mesh(sawtoothGeo, sawtoothGreenMat)
-    sawtoothTransition.position.y = 0.85
+    sawtoothTransition.position.set(0, 0.95, 0.08)
+    sawtoothTransition.rotation.x = -0.06
     sawtoothTransition.castShadow = true
     headGroup.add(sawtoothTransition)
 
-    const glassesFrame = new THREE.Mesh(new THREE.BoxGeometry(1.35, 0.38, 0.22), blackGlassesMat)
-    glassesFrame.position.set(0, 0.15, 0.74)
-    headGroup.add(glassesFrame)
+    // Angular Sunglasses (Angular frame with beveled side wings + cyan reflective lenses)
+    const glassesGroup = new THREE.Group()
+    glassesGroup.position.set(0, 0.18, 0.68)
+    glassesGroup.rotation.x = -0.06
+    headGroup.add(glassesGroup)
 
-    const lensL = new THREE.Mesh(new THREE.BoxGeometry(0.48, 0.24, 0.05), blueLensMat)
-    lensL.position.set(-0.35, 0.15, 0.86)
-    const lensR = new THREE.Mesh(new THREE.BoxGeometry(0.48, 0.24, 0.05), blueLensMat)
-    lensR.position.set(0.35, 0.15, 0.86)
-    headGroup.add(lensL, lensR)
+    const glassesCenter = new THREE.Mesh(new THREE.BoxGeometry(1.30, 0.32, 0.22), blackGlassesMat)
+    glassesGroup.add(glassesCenter)
 
-    const mouth = new THREE.Mesh(new THREE.BoxGeometry(0.55, 0.1, 0.08), cobaltBlueMat)
-    mouth.position.set(0, -0.32, 0.74)
+    // Angled wing temples
+    const wingL = new THREE.Mesh(new THREE.BoxGeometry(0.35, 0.28, 0.22), blackGlassesMat)
+    wingL.position.set(-0.68, 0, -0.08)
+    wingL.rotation.y = -0.42
+    const wingR = new THREE.Mesh(new THREE.BoxGeometry(0.35, 0.28, 0.22), blackGlassesMat)
+    wingR.position.set(0.68, 0, -0.08)
+    wingR.rotation.y = 0.42
+    glassesGroup.add(wingL, wingR)
+
+    // Angular Cyan Lenses
+    const lensL = new THREE.Mesh(new THREE.BoxGeometry(0.46, 0.22, 0.06), cyanLensMat)
+    lensL.position.set(-0.34, 0, 0.12)
+    const lensR = new THREE.Mesh(new THREE.BoxGeometry(0.46, 0.22, 0.06), cyanLensMat)
+    lensR.position.set(0.34, 0, 0.12)
+    glassesGroup.add(lensL, lensR)
+
+    // Smirk mouth
+    const mouth = new THREE.Mesh(new THREE.BoxGeometry(0.48, 0.08, 0.08), cobaltBlueMat)
+    mouth.position.set(0, -0.35, 0.66)
     headGroup.add(mouth)
 
-    // 2. Swept-Back 3 Leaves
+    // 3 Swept-Back Green Foliage Leaves
     const leaves: THREE.Object3D[] = []
     const leafOffsets = [
-      { angleX: -0.65, angleZ: 0.35, len: 3.2, y: 1.2 },
-      { angleX: -0.88, angleZ: 0.0, len: 3.8, y: 1.4 },
-      { angleX: -0.65, angleZ: -0.35, len: 3.2, y: 1.2 },
+      { angleX: -0.72, angleZ: 0.38, len: 3.4, y: 1.15, radiusTop: 0.12, radiusBottom: 0.28 },
+      { angleX: -0.92, angleZ: 0.0, len: 4.0, y: 1.35, radiusTop: 0.14, radiusBottom: 0.32 },
+      { angleX: -0.72, angleZ: -0.38, len: 3.4, y: 1.15, radiusTop: 0.12, radiusBottom: 0.28 },
     ]
     for (const lo of leafOffsets) {
       const leafPivot = new THREE.Group()
-      leafPivot.position.set(0, lo.y, -0.5)
+      leafPivot.position.set(0, lo.y, -0.45)
 
-      const leafGeo = new THREE.CylinderGeometry(0.18, 0.38, lo.len, 8)
+      const leafGeo = new THREE.CylinderGeometry(lo.radiusTop, lo.radiusBottom, lo.len, 8)
       leafGeo.translate(0, lo.len / 2, 0)
       const leafMesh = new THREE.Mesh(leafGeo, leafGreenMat)
       leafMesh.rotation.x = lo.angleX
@@ -184,107 +215,223 @@ export class CyberLeekRig {
       leaves.push(leafPivot)
     }
 
-    // 3. Torso
+    // ==========================================
+    // 2. TORSO & TACTICAL ARMOR
+    // ==========================================
     const torsoGroup = new THREE.Group()
     torsoGroup.position.y = 2.2
     body.add(torsoGroup)
 
-    const torso = new THREE.Mesh(new THREE.BoxGeometry(1.85, 1.8, 1.25), cobaltBlueMat)
+    const torso = new THREE.Mesh(new THREE.BoxGeometry(1.80, 1.75, 1.20), cobaltBlueMat)
     torso.castShadow = true
     torsoGroup.add(torso)
 
-    const armorPlate = new THREE.Mesh(new THREE.BoxGeometry(1.55, 1.25, 0.35), darkNavyMat)
-    armorPlate.position.set(0, 0.08, 0.55)
+    const armorPlate = new THREE.Mesh(new THREE.BoxGeometry(1.50, 1.20, 0.32), darkNavyMat)
+    armorPlate.position.set(0, 0.08, 0.52)
     torsoGroup.add(armorPlate)
 
-    const cyanStripeH = new THREE.Mesh(new THREE.BoxGeometry(1.65, 0.08, 0.1), cyanPipingMat)
-    cyanStripeH.position.set(0, 0.25, 0.72)
-    const cyanStripeV = new THREE.Mesh(new THREE.BoxGeometry(0.08, 0.85, 0.1), cyanPipingMat)
-    cyanStripeV.position.set(0, -0.15, 0.72)
+    const cyanStripeH = new THREE.Mesh(new THREE.BoxGeometry(1.60, 0.08, 0.08), cyanPipingMat)
+    cyanStripeH.position.set(0, 0.25, 0.68)
+    const cyanStripeV = new THREE.Mesh(new THREE.BoxGeometry(0.08, 0.80, 0.08), cyanPipingMat)
+    cyanStripeV.position.set(0, -0.15, 0.68)
     torsoGroup.add(cyanStripeH, cyanStripeV)
 
-    const collar = new THREE.Mesh(new THREE.BoxGeometry(1.75, 0.5, 1.35), cobaltBlueMat)
-    collar.position.set(0, 0.8, 0)
+    const collar = new THREE.Mesh(new THREE.BoxGeometry(1.68, 0.45, 1.28), cobaltBlueMat)
+    collar.position.set(0, 0.78, 0)
     torsoGroup.add(collar)
 
-    // 4. Arms & Fists
+    // ==========================================
+    // 3. ARTICULATED GAUNTLETS WITH ELBOW JOINTS & GLOWING CYAN CUFFS
+    // ==========================================
+    // Left Arm Hierarchy
     const leftArmPivot = new THREE.Group()
-    leftArmPivot.position.set(-1.25, 2.8, 0)
+    leftArmPivot.position.set(-1.25, 2.75, 0)
     body.add(leftArmPivot)
 
-    const pauldronL = new THREE.Mesh(new THREE.BoxGeometry(0.7, 0.6, 0.7), darkNavyMat)
+    const pauldronL = new THREE.Mesh(new THREE.BoxGeometry(0.68, 0.55, 0.68), darkNavyMat)
     leftArmPivot.add(pauldronL)
 
-    const armL = new THREE.Mesh(new THREE.CylinderGeometry(0.24, 0.24, 1.4, 8), cobaltBlueMat)
-    armL.position.y = -0.7
-    leftArmPivot.add(armL)
+    const upperArmL = new THREE.Mesh(new THREE.CylinderGeometry(0.20, 0.22, 0.65, 8), cobaltBlueMat)
+    upperArmL.position.y = -0.35
+    leftArmPivot.add(upperArmL)
 
+    // Articulated Left Elbow Joint & Forearm Gauntlet
+    const leftElbowPivot = new THREE.Group()
+    leftElbowPivot.position.set(0, -0.70, 0)
+    leftArmPivot.add(leftElbowPivot)
+
+    const elbowCapL = new THREE.Mesh(new THREE.SphereGeometry(0.22, 8, 8), darkNavyMat)
+    leftElbowPivot.add(elbowCapL)
+
+    const leftForearmGroup = new THREE.Group()
+    leftElbowPivot.add(leftForearmGroup)
+
+    const forearmL = new THREE.Mesh(new THREE.CylinderGeometry(0.22, 0.25, 0.65, 8), cobaltBlueMat)
+    forearmL.position.y = -0.35
+    leftForearmGroup.add(forearmL)
+
+    const gauntletPlateL = new THREE.Mesh(new THREE.BoxGeometry(0.28, 0.55, 0.30), darkNavyMat)
+    gauntletPlateL.position.set(0, -0.35, 0.08)
+    leftForearmGroup.add(gauntletPlateL)
+
+    // Glowing Cyan Wrist Cuff
+    const leftCuff = new THREE.Mesh(new THREE.CylinderGeometry(0.27, 0.27, 0.16, 12), cyanPipingMat)
+    leftCuff.position.set(0, -0.70, 0.04)
+    leftForearmGroup.add(leftCuff)
+
+    // Glowing Cyan Energy Fist
     const leftFist = new THREE.Mesh(new THREE.SphereGeometry(0.38, 8, 8), energyFistMat)
-    leftFist.position.set(0, -1.4, 0.1)
-    leftArmPivot.add(leftFist)
+    leftFist.position.set(0, -0.92, 0.06)
+    leftForearmGroup.add(leftFist)
 
+    // Right Arm Hierarchy
     const rightArmPivot = new THREE.Group()
-    rightArmPivot.position.set(1.25, 2.8, 0)
+    rightArmPivot.position.set(1.25, 2.75, 0)
     body.add(rightArmPivot)
 
-    const pauldronR = new THREE.Mesh(new THREE.BoxGeometry(0.7, 0.6, 0.7), darkNavyMat)
+    const pauldronR = new THREE.Mesh(new THREE.BoxGeometry(0.68, 0.55, 0.68), darkNavyMat)
     rightArmPivot.add(pauldronR)
 
-    const armR = new THREE.Mesh(new THREE.CylinderGeometry(0.24, 0.24, 1.4, 8), cobaltBlueMat)
-    armR.position.y = -0.7
-    rightArmPivot.add(armR)
+    const upperArmR = new THREE.Mesh(new THREE.CylinderGeometry(0.20, 0.22, 0.65, 8), cobaltBlueMat)
+    upperArmR.position.y = -0.35
+    rightArmPivot.add(upperArmR)
 
+    // Articulated Right Elbow Joint & Forearm Gauntlet
+    const rightElbowPivot = new THREE.Group()
+    rightElbowPivot.position.set(0, -0.70, 0)
+    rightArmPivot.add(rightElbowPivot)
+
+    const elbowCapR = new THREE.Mesh(new THREE.SphereGeometry(0.22, 8, 8), darkNavyMat)
+    rightElbowPivot.add(elbowCapR)
+
+    const rightForearmGroup = new THREE.Group()
+    rightElbowPivot.add(rightForearmGroup)
+
+    const forearmR = new THREE.Mesh(new THREE.CylinderGeometry(0.22, 0.25, 0.65, 8), cobaltBlueMat)
+    forearmR.position.y = -0.35
+    rightForearmGroup.add(forearmR)
+
+    const gauntletPlateR = new THREE.Mesh(new THREE.BoxGeometry(0.28, 0.55, 0.30), darkNavyMat)
+    gauntletPlateR.position.set(0, -0.35, 0.08)
+    rightForearmGroup.add(gauntletPlateR)
+
+    // Glowing Cyan Wrist Cuff
+    const rightCuff = new THREE.Mesh(new THREE.CylinderGeometry(0.27, 0.27, 0.16, 12), cyanPipingMat)
+    rightCuff.position.set(0, -0.70, 0.04)
+    rightForearmGroup.add(rightCuff)
+
+    // Glowing Cyan Energy Fist
     const rightFist = new THREE.Mesh(new THREE.SphereGeometry(0.38, 8, 8), energyFistMat)
-    rightFist.position.set(0, -1.4, 0.1)
-    rightArmPivot.add(rightFist)
+    rightFist.position.set(0, -0.92, 0.06)
+    rightForearmGroup.add(rightFist)
 
-    // 5. Belt & Pouches
+    // ==========================================
+    // 4. UTILITY BELT & POUCHES
+    // ==========================================
     const belt = new THREE.Group()
     belt.position.set(0, 1.4, 0)
-    const beltBand = new THREE.Mesh(new THREE.BoxGeometry(1.95, 0.28, 1.35), darkNavyMat)
+    const beltBand = new THREE.Mesh(new THREE.BoxGeometry(1.90, 0.26, 1.30), darkNavyMat)
     belt.add(beltBand)
 
-    const pouchL = new THREE.Mesh(new THREE.BoxGeometry(0.38, 0.42, 0.38), darkNavyMat)
-    pouchL.position.set(-1.05, -0.1, 0)
-    const pouchR = new THREE.Mesh(new THREE.BoxGeometry(0.38, 0.42, 0.38), darkNavyMat)
-    pouchR.position.set(1.05, -0.1, 0)
+    const pouchL = new THREE.Mesh(new THREE.BoxGeometry(0.36, 0.40, 0.36), darkNavyMat)
+    pouchL.position.set(-1.02, -0.08, 0)
+    const pouchR = new THREE.Mesh(new THREE.BoxGeometry(0.36, 0.40, 0.36), darkNavyMat)
+    pouchR.position.set(1.02, -0.08, 0)
     belt.add(pouchL, pouchR)
     body.add(belt)
 
-    // 6. Legs & Boots
+    // ==========================================
+    // 5. ARTICULATED KNEE PLATES & HEAVY COMBAT BOOTS
+    // ==========================================
+    // Left Leg Hierarchy
     const leftLegPivot = new THREE.Group()
     leftLegPivot.position.set(-0.55, 1.4, 0)
     body.add(leftLegPivot)
 
-    const legL = new THREE.Mesh(new THREE.CylinderGeometry(0.28, 0.28, 1.2, 8), cobaltBlueMat)
-    legL.position.y = -0.55
-    leftLegPivot.add(legL)
+    const thighL = new THREE.Mesh(new THREE.CylinderGeometry(0.25, 0.22, 0.62, 8), cobaltBlueMat)
+    thighL.position.y = -0.32
+    leftLegPivot.add(thighL)
 
-    const kneeL = new THREE.Mesh(new THREE.BoxGeometry(0.42, 0.38, 0.22), darkNavyMat)
-    kneeL.position.set(0, -0.55, 0.28)
-    leftLegPivot.add(kneeL)
+    // Articulated Left Knee Joint & Shin
+    const leftKneePivot = new THREE.Group()
+    leftKneePivot.position.set(0, -0.62, 0)
+    leftLegPivot.add(leftKneePivot)
 
-    const bootL = new THREE.Mesh(new THREE.BoxGeometry(0.55, 0.48, 0.85), darkNavyMat)
-    bootL.position.set(0, -1.15, 0.15)
-    bootL.castShadow = true
-    leftLegPivot.add(bootL)
+    const kneeCapL = new THREE.Mesh(new THREE.SphereGeometry(0.22, 8, 8), darkNavyMat)
+    leftKneePivot.add(kneeCapL)
 
+    // Articulated Knee Plate
+    const kneePlateL = new THREE.Mesh(new THREE.BoxGeometry(0.40, 0.36, 0.22), darkNavyMat)
+    kneePlateL.position.set(0, 0, 0.24)
+    leftKneePivot.add(kneePlateL)
+
+    const shinL = new THREE.Mesh(new THREE.CylinderGeometry(0.22, 0.24, 0.58, 8), cobaltBlueMat)
+    shinL.position.y = -0.32
+    leftKneePivot.add(shinL)
+
+    // Combat Boot with Treaded Sole & Toe Cap
+    const bootGroupL = new THREE.Group()
+    bootGroupL.position.set(0, -0.60, 0.12)
+    leftKneePivot.add(bootGroupL)
+
+    const bootUpperL = new THREE.Mesh(new THREE.BoxGeometry(0.50, 0.38, 0.60), darkNavyMat)
+    bootUpperL.position.y = 0.16
+    bootUpperL.castShadow = true
+
+    const bootToeL = new THREE.Mesh(new THREE.BoxGeometry(0.48, 0.28, 0.35), darkNavyMat)
+    bootToeL.position.set(0, 0.11, 0.32)
+    bootToeL.castShadow = true
+
+    const bootSoleL = new THREE.Mesh(new THREE.BoxGeometry(0.54, 0.14, 0.88), bootSoleMat)
+    bootSoleL.position.set(0, -0.02, 0.08)
+    bootSoleL.castShadow = true
+
+    bootGroupL.add(bootUpperL, bootToeL, bootSoleL)
+
+    // Right Leg Hierarchy
     const rightLegPivot = new THREE.Group()
     rightLegPivot.position.set(0.55, 1.4, 0)
     body.add(rightLegPivot)
 
-    const legR = new THREE.Mesh(new THREE.CylinderGeometry(0.28, 0.28, 1.2, 8), cobaltBlueMat)
-    legR.position.y = -0.55
-    rightLegPivot.add(legR)
+    const thighR = new THREE.Mesh(new THREE.CylinderGeometry(0.25, 0.22, 0.62, 8), cobaltBlueMat)
+    thighR.position.y = -0.32
+    rightLegPivot.add(thighR)
 
-    const kneeR = new THREE.Mesh(new THREE.BoxGeometry(0.42, 0.38, 0.22), darkNavyMat)
-    kneeR.position.set(0, -0.55, 0.28)
-    rightLegPivot.add(kneeR)
+    // Articulated Right Knee Joint & Shin
+    const rightKneePivot = new THREE.Group()
+    rightKneePivot.position.set(0, -0.62, 0)
+    rightLegPivot.add(rightKneePivot)
 
-    const bootR = new THREE.Mesh(new THREE.BoxGeometry(0.55, 0.48, 0.85), darkNavyMat)
-    bootR.position.set(0, -1.15, 0.15)
-    bootR.castShadow = true
-    rightLegPivot.add(bootR)
+    const kneeCapR = new THREE.Mesh(new THREE.SphereGeometry(0.22, 8, 8), darkNavyMat)
+    rightKneePivot.add(kneeCapR)
+
+    // Articulated Knee Plate
+    const kneePlateR = new THREE.Mesh(new THREE.BoxGeometry(0.40, 0.36, 0.22), darkNavyMat)
+    kneePlateR.position.set(0, 0, 0.24)
+    rightKneePivot.add(kneePlateR)
+
+    const shinR = new THREE.Mesh(new THREE.CylinderGeometry(0.22, 0.24, 0.58, 8), cobaltBlueMat)
+    shinR.position.y = -0.32
+    rightKneePivot.add(shinR)
+
+    // Combat Boot with Treaded Sole & Toe Cap
+    const bootGroupR = new THREE.Group()
+    bootGroupR.position.set(0, -0.60, 0.12)
+    rightKneePivot.add(bootGroupR)
+
+    const bootUpperR = new THREE.Mesh(new THREE.BoxGeometry(0.50, 0.38, 0.60), darkNavyMat)
+    bootUpperR.position.y = 0.16
+    bootUpperR.castShadow = true
+
+    const bootToeR = new THREE.Mesh(new THREE.BoxGeometry(0.48, 0.28, 0.35), darkNavyMat)
+    bootToeR.position.set(0, 0.11, 0.32)
+    bootToeR.castShadow = true
+
+    const bootSoleR = new THREE.Mesh(new THREE.BoxGeometry(0.54, 0.14, 0.88), bootSoleMat)
+    bootSoleR.position.set(0, -0.02, 0.08)
+    bootSoleR.castShadow = true
+
+    bootGroupR.add(bootUpperR, bootToeR, bootSoleR)
 
     const nodes: CyberLeekNodes = {
       root,
@@ -297,20 +444,26 @@ export class CyberLeekRig {
       rightFist,
       leftLeg: leftLegPivot,
       rightLeg: rightLegPivot,
-      leftBoot: bootL,
-      rightBoot: bootR,
+      leftBoot: bootGroupL,
+      rightBoot: bootGroupR,
       torso: torsoGroup,
       chestPlate: armorPlate,
       cyanPiping: [cyanStripeH, cyanStripeV],
       collar,
       sawtoothTransition,
-      glasses: glassesFrame,
+      glasses: glassesGroup,
       mouth,
       belt,
       leftPouch: pouchL,
       rightPouch: pouchR,
-      leftKnee: kneeL,
-      rightKnee: kneeR,
+      leftKnee: leftKneePivot,
+      rightKnee: rightKneePivot,
+      leftElbow: leftElbowPivot,
+      rightElbow: rightElbowPivot,
+      leftForearm: leftForearmGroup,
+      rightForearm: rightForearmGroup,
+      leftCuff,
+      rightCuff,
     }
 
     return { group: root, nodes }
@@ -474,6 +627,11 @@ export class CyberLeekRig {
       this.squashY = 1.0 - Math.sin(crouchT * Math.PI * 0.5) * 0.35
       this.squashXZ = 1.0 + Math.sin(crouchT * Math.PI * 0.5) * 0.30
 
+      if (this.nodes.leftKnee) this.nodes.leftKnee.rotation.x = 0.85
+      if (this.nodes.rightKnee) this.nodes.rightKnee.rotation.x = 0.85
+      if (this.nodes.leftElbow) this.nodes.leftElbow.rotation.x = 0.95
+      if (this.nodes.rightElbow) this.nodes.rightElbow.rotation.x = 0.95
+
       if (progress >= 0.25) {
         this.animState = 'leap_airborne'
       }
@@ -490,6 +648,11 @@ export class CyberLeekRig {
       this.nodes.leftArm.rotation.z = -0.35
       this.nodes.rightArm.rotation.z = 0.35
 
+      if (this.nodes.leftElbow) this.nodes.leftElbow.rotation.x = -0.45
+      if (this.nodes.rightElbow) this.nodes.rightElbow.rotation.x = -0.45
+      if (this.nodes.leftKnee) this.nodes.leftKnee.rotation.x = 0.15
+      if (this.nodes.rightKnee) this.nodes.rightKnee.rotation.x = 0.15
+
       if (progress >= 0.85) {
         this.animState = 'leap_slam'
       }
@@ -503,6 +666,10 @@ export class CyberLeekRig {
         this.nodes.rightArm.rotation.x = 1.35
         this.nodes.leftArm.rotation.z = 0
         this.nodes.rightArm.rotation.z = 0
+        if (this.nodes.leftElbow) this.nodes.leftElbow.rotation.x = 0.55
+        if (this.nodes.rightElbow) this.nodes.rightElbow.rotation.x = 0.55
+        if (this.nodes.leftKnee) this.nodes.leftKnee.rotation.x = 0.65
+        if (this.nodes.rightKnee) this.nodes.rightKnee.rotation.x = 0.65
         if (this.onActionCallback) {
           this.onActionCallback()
         }
@@ -520,7 +687,9 @@ export class CyberLeekRig {
       if (this.nodes.torso) this.nodes.torso.rotation.y = easeWind * 0.72
       this.nodes.rightArm.rotation.x = -easeWind * 1.85
       this.nodes.rightArm.rotation.z = -easeWind * 0.45
+      if (this.nodes.rightElbow) this.nodes.rightElbow.rotation.x = -easeWind * 1.10
       this.nodes.leftArm.rotation.x = easeWind * 0.65
+      if (this.nodes.leftElbow) this.nodes.leftElbow.rotation.x = easeWind * 0.45
       this.nodes.head.rotation.y = -easeWind * 0.45
 
       if (progress >= 0.45) {
@@ -542,12 +711,16 @@ export class CyberLeekRig {
       if (this.nodes.torso) this.nodes.torso.rotation.y = 0.72 - snapT * 1.4
       this.nodes.rightArm.rotation.x = -1.85 + snapT * 2.9
       this.nodes.rightArm.rotation.z = -0.45 + snapT * 0.85
+      if (this.nodes.rightElbow) this.nodes.rightElbow.rotation.x = -1.10 + snapT * 1.50
       this.nodes.leftArm.rotation.x = 0.65 - snapT * 1.1
+      if (this.nodes.leftElbow) this.nodes.leftElbow.rotation.x = 0.45 - snapT * 0.45
       this.nodes.head.rotation.y = -0.45 + snapT * 0.6
 
       if (progress >= 1.0) {
         if (this.nodes.torso) this.nodes.torso.rotation.y = 0
         this.nodes.head.rotation.y = 0
+        if (this.nodes.rightElbow) this.nodes.rightElbow.rotation.x = 0
+        if (this.nodes.leftElbow) this.nodes.leftElbow.rotation.x = 0
         this.animState = isMoving ? (isSprinting ? 'sprint' : 'march') : 'idle'
       }
     }
@@ -637,6 +810,13 @@ export class CyberLeekRig {
       this.nodes.rightFist.material.color.setHex(colorHex)
     }
 
+    if (this.nodes.leftCuff && this.nodes.leftCuff.material instanceof THREE.MeshBasicMaterial) {
+      this.nodes.leftCuff.material.color.setHex(colorHex)
+    }
+    if (this.nodes.rightCuff && this.nodes.rightCuff.material instanceof THREE.MeshBasicMaterial) {
+      this.nodes.rightCuff.material.color.setHex(colorHex)
+    }
+
     if (this.nodes.cyanPiping && phase === 2) {
       const pipingPulse = 0.85 + Math.sin(this.globalTime * 12.0) * 0.15
       for (const pipe of this.nodes.cyanPiping) {
@@ -684,11 +864,16 @@ export class CyberLeekRig {
       this.nodes.leftLeg.position.y = 1.4 + leftFootLift
       this.nodes.rightLeg.position.y = 1.4 + rightFootLift
 
+      // Articulated Knee Flexion during stride
+      if (this.nodes.leftKnee) {
+        this.nodes.leftKnee.rotation.x = Math.max(0, -legAngle) * 0.75
+      }
+      if (this.nodes.rightKnee) {
+        this.nodes.rightKnee.rotation.x = Math.max(0, legAngle) * 0.75
+      }
+
       this.nodes.leftBoot.rotation.x = -legAngle * 0.45
       this.nodes.rightBoot.rotation.x = legAngle * 0.45
-
-      if (this.nodes.leftKnee) this.nodes.leftKnee.position.z = 0.28 + Math.max(0, -legAngle) * 0.12
-      if (this.nodes.rightKnee) this.nodes.rightKnee.position.z = 0.28 + Math.max(0, legAngle) * 0.12
 
       if (!isPlayingSpecialAction) {
         const armAngle = -Math.sin(this.strideTime) * this.config.armSwingAngle
@@ -696,12 +881,18 @@ export class CyberLeekRig {
         this.nodes.rightArm.rotation.x = -armAngle
         this.nodes.leftArm.rotation.z = 0.12 + Math.abs(Math.sin(this.strideTime)) * 0.08
         this.nodes.rightArm.rotation.z = -0.12 - Math.abs(Math.sin(this.strideTime)) * 0.08
+
+        // Articulated Elbow Pumping during march / sprint
+        const elbowBase = isSprinting ? 0.85 : 0.45
+        const elbowSwing = Math.sin(this.strideTime) * (isSprinting ? 0.35 : 0.20)
+        if (this.nodes.leftElbow) this.nodes.leftElbow.rotation.x = elbowBase + elbowSwing
+        if (this.nodes.rightElbow) this.nodes.rightElbow.rotation.x = elbowBase - elbowSwing
       }
 
       if (this.nodes.leftPouch && this.nodes.rightPouch) {
         const pouchJiggleY = Math.sin(this.strideTime * 2.0) * 0.04
-        this.nodes.leftPouch.position.y = -0.1 + pouchJiggleY
-        this.nodes.rightPouch.position.y = -0.1 + pouchJiggleY
+        this.nodes.leftPouch.position.y = -0.08 + pouchJiggleY
+        this.nodes.rightPouch.position.y = -0.08 + pouchJiggleY
       }
     } else {
       this.currentLeanX += (0 - this.currentLeanX) * Math.min(1.0, dt * 8.0)
@@ -713,10 +904,10 @@ export class CyberLeekRig {
       this.nodes.leftBoot.rotation.x = 0
       this.nodes.rightBoot.rotation.x = 0
 
-      if (this.nodes.leftKnee) this.nodes.leftKnee.position.z = 0.28
-      if (this.nodes.rightKnee) this.nodes.rightKnee.position.z = 0.28
-      if (this.nodes.leftPouch) this.nodes.leftPouch.position.y = -0.1
-      if (this.nodes.rightPouch) this.nodes.rightPouch.position.y = -0.1
+      if (this.nodes.leftKnee && !isPlayingSpecialAction) this.nodes.leftKnee.rotation.x = 0
+      if (this.nodes.rightKnee && !isPlayingSpecialAction) this.nodes.rightKnee.rotation.x = 0
+      if (this.nodes.leftPouch) this.nodes.leftPouch.position.y = -0.08
+      if (this.nodes.rightPouch) this.nodes.rightPouch.position.y = -0.08
 
       if (!isPlayingSpecialAction) {
         if (this.nodes.torso) {
@@ -729,6 +920,8 @@ export class CyberLeekRig {
         this.nodes.rightArm.rotation.x = -idleArm
         this.nodes.leftArm.rotation.z = 0.06
         this.nodes.rightArm.rotation.z = -0.06
+        if (this.nodes.leftElbow) this.nodes.leftElbow.rotation.x = 0.25
+        if (this.nodes.rightElbow) this.nodes.rightElbow.rotation.x = 0.25
       }
     }
 
@@ -737,3 +930,4 @@ export class CyberLeekRig {
     }
   }
 }
+

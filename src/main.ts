@@ -7,6 +7,7 @@ import { SpatialGrid } from './systems/SpatialGrid'
 import { HeatingSystem } from './systems/HeatingSystem'
 import { Boss } from './entities/Boss'
 import { ChoiceUI } from './ui/ChoiceUI'
+import { PauseUI } from './ui/PauseUI'
 import { HUD } from './ui/HUD'
 import { VictoryScreen } from './ui/VictoryScreen'
 import { RankSystem } from './systems/RankSystem'
@@ -32,6 +33,7 @@ class Game {
   private heatingSystem: HeatingSystem
   private boss: Boss
   private choiceUI: ChoiceUI
+  private pauseUI: PauseUI
   private hud: HUD
   private victoryScreen: VictoryScreen
   private rankSystem: RankSystem
@@ -56,10 +58,10 @@ class Game {
     const app = document.getElementById('app') || document.body
     app.appendChild(this.renderer.domElement)
 
-    // 2. Scene & Bright Illuminated PS1 Environment (Cutting Mat + High-Contrast Green PCB)
+    // 2. Scene & Bright Illuminated PS1 Environment (Molded Gray ABS Chassis Interior #7a8699 + High-Contrast Green PCB)
     this.scene = new THREE.Scene()
-    this.scene.background = new THREE.Color(0x1b4d3e)
-    this.scene.fog = new THREE.FogExp2(0x1b4d3e, 0.005)
+    this.scene.background = new THREE.Color(0x7a8699)
+    this.scene.fog = new THREE.FogExp2(0x7a8699, 0.005)
 
     // 3. 3D Camera Setup
     this.camera = new THREE.PerspectiveCamera(46, 960 / 720, 0.1, 120)
@@ -103,25 +105,52 @@ class Game {
     this.heatingSystem = new HeatingSystem(this.scene)
     this.boss = new Boss(this.scene)
     this.choiceUI = new ChoiceUI()
+    this.pauseUI = new PauseUI({
+      onRestart: () => {
+        window.location.reload()
+      },
+      onShaderToggle: (mode) => {
+        this.ps1Pass.setShaderMode(mode)
+      },
+      getShaderMode: () => {
+        return this.ps1Pass.getShaderMode()
+      },
+    })
     this.hud = new HUD()
     this.victoryScreen = new VictoryScreen()
     this.rankSystem = new RankSystem()
     this.progressionSystem = new ProgressionSystem(this.scene)
     this.particleSystem = new ParticleSystem(this.scene)
     this.fourthWall = new FourthWall()
+    this.pauseUI = new PauseUI(this.ps1Pass)
+
+    ;(window as any).__game = this
 
     this.setupMetaEvents()
     this.animate()
   }
 
   private setupMetaEvents(): void {
+    const startAudioOnGesture = () => {
+      SoundSystem.startMusic()
+      this.hud.updateAudioBadge()
+      window.removeEventListener('pointerdown', startAudioOnGesture)
+      window.removeEventListener('keydown', startAudioOnGesture)
+    }
+    window.addEventListener('pointerdown', startAudioOnGesture, { once: true })
+    window.addEventListener('keydown', startAudioOnGesture, { once: true })
+
     window.addEventListener('keydown', (e) => {
-      if (e.key === 'r' || e.key === 'R') {
+      if ((e.key === 'r' || e.key === 'R') && (this.isGameOver || this.isVictory)) {
         window.location.reload()
       }
       if (e.key === 'g' || e.key === 'G') {
         FourthWall.triggerA3Glitch()
         this.ps1Pass.triggerGlitch()
+      }
+      if (e.key === 'm' || e.key === 'M') {
+        SoundSystem.toggleMusic()
+        this.hud.updateAudioBadge()
       }
     })
   }
@@ -132,7 +161,7 @@ class Game {
     const dt = Math.min(this.clock.getDelta(), 0.1)
 
     if (!this.isGameOver && !this.isVictory) {
-      if (!this.choiceUI.isOpen) {
+      if (!this.choiceUI.isOpen && !this.pauseUI.isOpen) {
         this.updateGame(dt)
       }
     }
@@ -187,8 +216,8 @@ class Game {
       SoundSystem.playGem()
     })
 
-    // 6. Update Enemies & Projectiles
-    this.spawnSystem.update(dt, pPos.x, pPos.z, this.heatingSystem.pucesHeatedCount)
+    // 6. Update Enemies & Projectiles (with physical Motherboard obstacle collisions)
+    this.spawnSystem.update(dt, pPos.x, pPos.z, this.heatingSystem.pucesHeatedCount, this.motherboard)
 
     // 7. Player Bullets vs Enemies Collisions
     for (const bullet of this.player.bullets) {
@@ -206,12 +235,16 @@ class Game {
           bullet.active = false
           bullet.mesh.visible = false
 
-          this.particleSystem.burst({ x: bX, y: 0.6, z: bZ }, 6, 0.0, 1.0, 1.0)
+          // High-contrast electric cyan and white bullet hit sparks
+          this.particleSystem.burst({ x: bX, y: 0.6, z: bZ }, 8, 0.0, 1.0, 1.0)
+          this.particleSystem.burst({ x: bX, y: 0.6, z: bZ }, 4, 1.0, 1.0, 0.8)
+
           const res = this.spawnSystem.damageEnemy(inst.id, this.player.stats.shootDamage)
           if (res && res.killed) {
             this.progressionSystem.kills++
             this.progressionSystem.spawnGem(res.x, res.z)
-            this.particleSystem.burst({ x: res.x, y: 0.6, z: res.z }, 12, 1.0, 0.8, 0.0)
+            // Fiery golden explosion sparks on defeat
+            this.particleSystem.burst({ x: res.x, y: 0.6, z: res.z }, 16, 1.0, 0.8, 0.0)
           }
           break
         }
@@ -228,8 +261,10 @@ class Game {
       })
 
       if (shockwaveActive) {
-        this.player.takeDamage(1)
-        this.ps1Pass.triggerDamageGlitch()
+        if (this.player.takeDamage(1)) {
+          this.particleSystem.burst({ x: pPos.x, y: 0.6, z: pPos.z }, 10, 1.0, 0.2, 0.2)
+          this.ps1Pass.triggerDamageGlitch()
+        }
       }
 
       for (const disc of this.boss.getActiveDiscs()) {
@@ -237,6 +272,7 @@ class Game {
         const dz = pPos.z - disc.z
         if (Math.sqrt(dx * dx + dz * dz) <= disc.radius + 0.5) {
           if (this.player.takeDamage(1)) {
+            this.particleSystem.burst({ x: pPos.x, y: 0.6, z: pPos.z }, 10, 1.0, 0.2, 0.2)
             this.ps1Pass.triggerDamageGlitch()
           }
         }
@@ -302,6 +338,7 @@ class Game {
       // Body Contact Damage (only if not jumping high above enemy)
       if (distSq <= minDist * minDist && this.player.root.group.position.y < 1.2) {
         if (this.player.takeDamage(1)) {
+          this.particleSystem.burst({ x: pX, y: 0.6, z: pZ }, 12, 1.0, 0.2, 0.2)
           this.ps1Pass.triggerDamageGlitch()
         }
       }
@@ -321,12 +358,15 @@ class Game {
       }
     }
 
-    // PEPE Projectiles Collision
+    // PEPE Projectiles Collision (Despawn immediately on contact to prevent phantom damage)
     for (const proj of this.spawnSystem.getActiveProjectiles()) {
       const dx = pX - proj.x
       const dz = pZ - proj.z
       if (Math.sqrt(dx * dx + dz * dz) <= proj.radius + 0.5 && this.player.root.group.position.y < 1.0) {
+        this.spawnSystem.despawnProjectile(proj.id)
+        this.particleSystem.burst({ x: proj.x, y: 0.5, z: proj.z }, 8, 0.0, 1.0, 0.4)
         if (this.player.takeDamage(1)) {
+          this.particleSystem.burst({ x: pX, y: 0.6, z: pZ }, 12, 1.0, 0.2, 0.2)
           this.ps1Pass.triggerDamageGlitch()
         }
       }
