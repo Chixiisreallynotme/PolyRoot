@@ -1,0 +1,31 @@
+appId: com.polyroot.escape
+productName: PolyRoot Escape from PS1
+asar: true
+asarUnpack:
+  - resources/**
+directories:
+  buildResources: build
+  output: release
+files:
+  - dist/**/*
+  - dist-electron/**/*
+  - '!src/**/*'
+  - '!electron/**/*'
+  - '!**/*.map'
+  - '!**/*.ts'
+  - '!node_modules/.cache/**'
+  - '!release/**'
+extraResources:
+  - from: public/textures/
+    to: resources/textures/
+    filter:
+      - '**/*'
+win:
+  target: nsis
+  icon: build/icon.png
+linux:
+  target: AppImage
+  icon: build/icon.png
+nsis:
+  oneClick: false
+  allowToChangeInstallationDirectory: true

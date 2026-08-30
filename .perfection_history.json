@@ -1,0 +1,7 @@
+{
+  "project": "PolyRoot",
+  "target": 95,
+  "history": [
+    { "iter": 0, "S_comp": 12, "hard_block": true, "note": "baseline scaffold", "timestamp": "2026-08-30T04:16:00Z" }
+  ]
+}

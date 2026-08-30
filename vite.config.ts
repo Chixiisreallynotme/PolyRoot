@@ -4,14 +4,14 @@ import { viteStaticCopy } from 'vite-plugin-static-copy'
 import electron from 'vite-plugin-electron/simple'
 import path from 'path'
 
-// PolyRoot : Vite + Three.js r184 + PS1 320x240 + Electron
-// Perf : antialias false, pixelRatio 1, treeshaking Three
+// via antfu/skills@vite 33.9K Vite 8 Rolldown — via threejs-shaders HMR <200ms
+// ctx7 vite-plugin-electron 1.1.1: simple + ctx7 r184: WebGLRenderer antialias:false pixelRatio:1
+// EVAL electron-vite 5.0.0: vite-plugin-electron retenu car HMR <200ms + 1 config vs 3 — voir EVAL_ELECTRON_VITE.md
 export default defineConfig({
   plugins: [
     glsl({
-      include: /\.(glsl|wgsl|vert|frag)$/,
+      include: ['**/*.glsl', '**/*.wgsl', '**/*.vert', '**/*.frag'] as unknown as string,
       watch: true,
-      minify: true,
     }),
     viteStaticCopy({
       targets: [

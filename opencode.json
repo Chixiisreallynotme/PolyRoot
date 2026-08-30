@@ -19,7 +19,12 @@
     "threejs": {
       "type": "local",
       "command": ["npx", "-y", "threejs-mcp"],
-      "enabled": false
+      "enabled": true
+    },
+    "github": {
+      "type": "local",
+      "command": ["npx", "-y", "@modelcontextprotocol/server-github"],
+      "enabled": true
     },
     "threejs-devtools": {
       "type": "local",
