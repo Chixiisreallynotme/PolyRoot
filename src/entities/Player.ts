@@ -2,7 +2,7 @@ import * as THREE from 'three'
 import { Root } from './Root'
 import { SoundSystem } from '../audio/SoundSystem'
 
-// Player entity with Jump (Space) and Dash (Shift), Plasma Cannon, and Rubber-Hose Animation
+// Player entity with 3D Jump & Component Platform Landing (Space), Dash (Shift), Plasma Cannon, and Rubber-Hose Animation
 
 export interface PlayerBullet {
   mesh: THREE.Mesh
@@ -44,6 +44,7 @@ export class Player {
   private maxBullets = 20
   private keys: Record<string, boolean> = {}
   private velocity = { x: 0, z: 0 }
+  public currentFloorY = 0
 
   constructor(scene: THREE.Scene, startX = 24, startZ = 18) {
     this.root = new Root()
@@ -140,7 +141,7 @@ export class Player {
 
   private triggerJump(): void {
     this.stats.isJumping = true
-    this.stats.jumpVy = 7.5
+    this.stats.jumpVy = 8.5
     this.root.rig.triggerImpactSquash(0.25)
     SoundSystem.playJump()
   }
@@ -149,8 +150,10 @@ export class Player {
     dt: number,
     speedScale = 1.0,
     enemies?: { x: number; z: number; active: boolean }[],
-    getFloorHeight?: (x: number, z: number) => number
+    targetFloorY = 0
   ): void {
+    this.currentFloorY = targetFloorY
+
     if (this.stats.dashTimer > 0) this.stats.dashTimer -= dt
     if (this.stats.iFrames > 0) {
       this.stats.iFrames -= dt
@@ -189,34 +192,28 @@ export class Player {
     this.group.position.x += this.velocity.x * dt
     this.group.position.z += this.velocity.z * dt
 
-    // 3D Platform & Jump Vertical Physics
-    const targetFloorY = getFloorHeight ? getFloorHeight(this.group.position.x, this.group.position.z) : 0
-
-    if (this.stats.isJumping) {
+    // 3D Jump & Component Platform Landing Physics
+    if (this.stats.isJumping || this.root.group.position.y > this.currentFloorY + 0.01) {
       this.root.group.position.y += this.stats.jumpVy * dt
-      this.stats.jumpVy -= 22.0 * dt
+      this.stats.jumpVy -= 24.0 * dt
 
-      if (this.root.group.position.y <= targetFloorY) {
-        this.root.group.position.y = targetFloorY
+      if (this.root.group.position.y <= this.currentFloorY) {
+        this.root.group.position.y = this.currentFloorY
         this.stats.isJumping = false
         this.stats.jumpVy = 0
-        this.root.rig.triggerImpactSquash(0.3)
+        this.root.rig.triggerImpactSquash(0.25)
       }
-    } else {
-      if (this.root.group.position.y > targetFloorY) {
-        this.root.group.position.y -= 18.0 * dt
-        if (this.root.group.position.y < targetFloorY) {
-          this.root.group.position.y = targetFloorY
-          this.root.rig.triggerImpactSquash(0.2)
-        }
-      } else if (this.root.group.position.y < targetFloorY) {
-        this.root.group.position.y = targetFloorY
-      }
-    }
 
-    const shadowScale = Math.max(0.4, 1.0 - (this.root.group.position.y - targetFloorY) * 0.25)
-    this.shadowMesh.scale.set(shadowScale, 1, shadowScale)
-    this.shadowMesh.position.y = targetFloorY + 0.02
+      const shadowScale = Math.max(0.4, 1.0 - (this.root.group.position.y - this.currentFloorY) * 0.25)
+      this.shadowMesh.scale.set(shadowScale, 1, shadowScale)
+      this.shadowMesh.position.y = this.currentFloorY + 0.02
+      this.auraMesh.position.y = this.currentFloorY + 0.03
+    } else {
+      this.root.group.position.y = this.currentFloorY
+      this.shadowMesh.scale.set(1, 1, 1)
+      this.shadowMesh.position.y = this.currentFloorY + 0.02
+      this.auraMesh.position.y = this.currentFloorY + 0.03
+    }
 
     this.group.position.x = Math.max(2.0, Math.min(46.0, this.group.position.x))
     this.group.position.z = Math.max(2.0, Math.min(34.0, this.group.position.z))
@@ -275,7 +272,7 @@ export class Player {
     const b = this.bullets.find((bullet) => !bullet.active)
     if (b) {
       b.active = true
-      b.mesh.position.set(x, 0.6, z)
+      b.mesh.position.set(x, this.root.group.position.y + 0.6, z)
       b.mesh.visible = true
       b.vx = vx
       b.vz = vz

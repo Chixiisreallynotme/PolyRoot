@@ -56,10 +56,10 @@ class Game {
     const app = document.getElementById('app') || document.body
     app.appendChild(this.renderer.domElement)
 
-    // 2. Scene & Bright Illuminated PS1 Industrial Environment (Gray Enclosure + Rich Green PCB)
+    // 2. Scene & Bright Illuminated PS1 Environment (Cutting Mat + High-Contrast Green PCB)
     this.scene = new THREE.Scene()
-    this.scene.background = new THREE.Color(0x718096)
-    this.scene.fog = new THREE.FogExp2(0x718096, 0.005)
+    this.scene.background = new THREE.Color(0x1b4d3e)
+    this.scene.fog = new THREE.FogExp2(0x1b4d3e, 0.005)
 
     // 3. 3D Camera Setup
     this.camera = new THREE.PerspectiveCamera(46, 960 / 720, 0.1, 120)
@@ -144,18 +144,16 @@ class Game {
   }
 
   private updateGame(dt: number): void {
-    // 1. Update Player Movement, Jump & Auto-Aim
-    const speedScale = this.heatingSystem.isPlayerInsideAny ? 0.70 : 1.0
-    this.player.update(
-      dt,
-      speedScale,
-      this.spawnSystem.instances,
-      (x, z) => this.motherboard.getFloorHeight(x, z)
-    )
-
     const pPos = this.player.position
 
-    // 2. Physical Motherboard Component Collisions (Solid IC chips & capacitors)
+    // 1. Calculate Component Standing Platform Floor Height
+    const floorY = this.motherboard.getSupportHeight(pPos.x, pPos.z, 0.45)
+
+    // 2. Update Player Movement, Jump & Auto-Aim
+    const speedScale = this.heatingSystem.isPlayerInsideAny ? 0.70 : 1.0
+    this.player.update(dt, speedScale, this.spawnSystem.instances, floorY)
+
+    // 3. Physical Motherboard Component Collisions (Solid IC chips & capacitors)
     const col = this.motherboard.checkCollision(pPos.x, pPos.z, 0.55, this.player.root.group.position.y)
     if (col.collided) {
       pPos.x += col.pushX

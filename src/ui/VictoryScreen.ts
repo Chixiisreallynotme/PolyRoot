@@ -1,109 +1,128 @@
-import { RankSystem, type RunScore } from '../systems/RankSystem'
-
-// UI for Victory and Game Over screens with Bitcount Grid Double & Pixel Art SVGs (Zero emojis, Zero slop)
+import { RunScore, RankSystem } from '../systems/RankSystem'
 
 export class VictoryScreen {
-  private container: HTMLDivElement | null = null
+  private container: HTMLDivElement
+
+  constructor() {
+    this.container = document.createElement('div')
+    this.container.id = 'victory-screen'
+    this.container.style.display = 'none'
+    this.container.style.position = 'fixed'
+    this.container.style.top = '0'
+    this.container.style.left = '0'
+    this.container.style.width = '100vw'
+    this.container.style.height = '100vh'
+    this.container.style.background = 'rgba(8, 12, 20, 0.94)'
+    this.container.style.backdropFilter = 'blur(6px)'
+    this.container.style.zIndex = '1000'
+    this.container.style.flexDirection = 'column'
+    this.container.style.justifyContent = 'center'
+    this.container.style.alignItems = 'center'
+    this.container.style.fontFamily = "'Bitcount Grid Double', monospace"
+    this.container.style.color = '#00ff88'
+    this.container.style.userSelect = 'none'
+
+    document.body.appendChild(this.container)
+  }
 
   showVictory(score: RunScore, onRestart: () => void): void {
-    this.render(true, score, 8, onRestart)
-  }
+    this.container.style.display = 'flex'
+    const rankColor =
+      score.rank === 'S'
+        ? '#00ff88'
+        : score.rank === 'A'
+        ? '#38bdf8'
+        : score.rank === 'B'
+        ? '#facc15'
+        : '#94a3b8'
 
-  showGameOver(score: RunScore, pucesHeated: number, onRestart: () => void): void {
-    this.render(false, score, pucesHeated, onRestart)
-  }
-
-  private render(isVictory: boolean, score: RunScore, pucesHeated: number, onRestart: () => void): void {
-    if (!this.container) {
-      this.container = document.createElement('div')
-      this.container.id = 'end-screen-modal'
-      this.container.style.cssText = `
-        position: fixed;
-        top: 0; left: 0; right: 0; bottom: 0;
-        background: rgba(8, 14, 24, 0.94);
-        backdrop-filter: blur(8px);
-        display: flex;
-        flex-direction: column;
-        align-items: center;
-        justify-content: center;
-        font-family: 'Bitcount Grid Double', monospace;
-        color: #00ff88;
-        z-index: 10000;
-        image-rendering: pixelated;
-      `
-      document.body.appendChild(this.container)
-    }
-
-    const title = isVictory ? 'PU-8 RESTAURATION VALIDÉE // SYSTÈME EN LIGNE' : 'INTERRUPTION BUS CRITIQUE // ÉCHEC SYSTÈME'
-    const titleColor = isVictory ? '#00ff88' : '#ff2244'
-    const rankBadgeColor = score.rank === 'S' ? '#ffd700' : score.rank === 'A' ? '#00ff88' : '#3399ff'
-
-    const nearMissHtml = score.nearMissMessage
-      ? `<div style="font-size: 14px; color: #ffaa00; margin-bottom: 14px; letter-spacing: 1px;">[ ${score.nearMissMessage} ]</div>`
-      : ''
-
-    const subText = isVictory
-      ? `8 / 8 CIRCUITS INTÉGRÉS SYNCHRONISÉS // CARTE MÈRE PU-8 OPÉRATIONNELLE`
-      : `${pucesHeated} / 8 CIRCUITS INTÉGRÉS RESTAURÉS AVANT DÉCONNEXION MATÉRIELLE`
+    const rawTimeFormatted = RankSystem.formatTime(score.rawTimeSeconds)
+    const scoreTimeFormatted = RankSystem.formatTime(score.scoreTimeSeconds)
+    const killBonus = (score.kills * 0.05).toFixed(2)
 
     this.container.innerHTML = `
-      <div style="background: #0f1926; border: 2px solid ${titleColor}; padding: 36px 40px; max-width: 620px; text-align: center; box-shadow: 0 0 35px rgba(0,0,0,0.85); border-radius: 8px;">
-        <h1 style="font-family: 'Bitcount Grid Double', monospace; font-size: 26px; font-weight: 900; margin: 0 0 12px 0; color: ${titleColor}; letter-spacing: 2px; text-shadow: 0 0 16px ${titleColor}66;">
-          ${title}
+      <div style="text-align: center; max-width: 620px; padding: 32px; border: 2px solid #00ff88; background: #0c121e; box-shadow: 0 0 24px rgba(0, 255, 136, 0.25); border-radius: 8px;">
+        <h1 style="color: #00ff88; font-size: 32px; letter-spacing: 2px; margin-bottom: 8px; text-shadow: 0 0 12px rgba(0,255,136,0.5);">
+          SYSTEM OVERRIDE COMPLETED
         </h1>
-        
-        <p style="font-size: 13px; color: #cbd5e0; margin-bottom: 24px; line-height: 1.5; font-family: 'Bitcount Grid Double', monospace; letter-spacing: 1px;">
-          ${subText}
+        <p style="color: #94a3b8; font-size: 14px; margin-bottom: 24px;">
+          PS1 PU-8 KERNEL OVERCLOCKED // ROOT ACCESS GRANTED
         </p>
 
-        <div style="background: #152233; border: 1px solid #1e3a5f; padding: 18px 22px; margin-bottom: 22px; text-align: left; border-radius: 6px;">
-          <div style="display: flex; justify-content: space-between; margin-bottom: 10px; font-size: 13px;">
-            <span style="color: #94a3b8; letter-spacing: 1px;">CYCLE HORLOGE (TEMPS BRUT):</span>
-            <span style="color: #ffffff; font-weight: bold; letter-spacing: 1px;">${RankSystem.formatTime(score.rawTimeSeconds)}</span>
+        <div style="background: #080d16; border: 1px solid #1e293b; padding: 20px; border-radius: 6px; text-align: left; margin-bottom: 24px; font-size: 14px;">
+          <div style="display: flex; justify-content: space-between; margin-bottom: 10px; color: #94a3b8;">
+            <span>TEMPS BRUT :</span>
+            <strong style="color: #f8fafc;">${rawTimeFormatted}</strong>
           </div>
-          <div style="display: flex; justify-content: space-between; margin-bottom: 10px; font-size: 13px;">
-            <span style="color: #94a3b8; letter-spacing: 1px;">PURGE PARASITES (${score.kills} ÉLIMS):</span>
-            <span style="color: #00ff88; font-weight: bold; letter-spacing: 1px;">-${(score.kills * 0.05).toFixed(2)}s</span>
+          <div style="display: flex; justify-content: space-between; margin-bottom: 10px; color: #94a3b8;">
+            <span>BONUS NEUTRALISATIONS (${score.kills} × -0.05s) :</span>
+            <strong style="color: #38bdf8;">-${killBonus}s</strong>
           </div>
-          <div style="display: flex; justify-content: space-between; margin-bottom: 10px; font-size: 13px;">
-            <span style="color: #94a3b8; letter-spacing: 1px;">INDEX DE PERFORMANCE:</span>
-            <span style="color: #00ff88; font-weight: bold; letter-spacing: 1px;">${RankSystem.formatTime(score.scoreTimeSeconds)}</span>
+          <div style="display: flex; justify-content: space-between; margin-bottom: 14px; color: #94a3b8;">
+            <span>SCORE CHRONO FINAL :</span>
+            <strong style="color: #f8fafc;">${scoreTimeFormatted}</strong>
           </div>
-          <div style="display: flex; justify-content: space-between; align-items: center; border-top: 1px solid #1e3a5f; padding-top: 12px; margin-top: 6px;">
-            <span style="color: #94a3b8; letter-spacing: 1px;">QUALIFICATION SYSTÈME:</span>
-            <span style="font-family: 'Bitcount Grid Double', monospace; font-size: 24px; font-weight: 900; color: ${rankBadgeColor}; letter-spacing: 2px;">RANG ${score.rank}</span>
+          <div style="border-top: 1px dashed #334155; padding-top: 12px; display: flex; justify-content: space-between; align-items: center;">
+            <span style="font-size: 16px; font-weight: 700; color: #f8fafc;">RANG DE PERFORMANCE :</span>
+            <span style="font-size: 28px; font-weight: 900; color: ${rankColor}; text-shadow: 0 0 10px ${rankColor};">
+              RANG ${score.rank}
+            </span>
           </div>
         </div>
 
-        ${nearMissHtml}
+        <button id="btn-restart" style="background: #00ff88; color: #050b14; border: none; padding: 14px 28px; font-size: 15px; font-weight: 800; font-family: inherit; border-radius: 4px; cursor: pointer; transition: transform 0.1s, box-shadow 0.1s; box-shadow: 0 0 14px rgba(0,255,136,0.4);">
+          [R] RECOMMENCER LA RUN
+        </button>
 
-        <button id="btn-restart-game" style="background: #00ff88; color: #081018; border: none; font-family: 'Bitcount Grid Double', monospace; font-size: 15px; font-weight: 900; padding: 14px 28px; cursor: pointer; text-transform: uppercase; letter-spacing: 2px; border-radius: 4px; box-shadow: 0 0 16px rgba(0,255,136,0.4); transition: transform 0.15s ease;">
-          [R] RÉINITIALISER LE CYCLE
+        <div style="margin-top: 24px; font-size: 11px; color: #64748b; border-top: 1px solid #1e293b; padding-top: 12px;">
+          HARDWARE STATUS : 8/8 PUCES STABILISÉES // 60 FPS p95
+        </div>
+      </div>
+    `
+
+    const btn = document.getElementById('btn-restart')
+    btn?.addEventListener('click', onRestart)
+  }
+
+  showGameOver(score: RunScore, pucesHeated: number, onRestart: () => void): void {
+    this.container.style.display = 'flex'
+    const rawTimeFormatted = RankSystem.formatTime(score.rawTimeSeconds)
+
+    this.container.innerHTML = `
+      <div style="text-align: center; max-width: 580px; padding: 32px; border: 2px solid #ef4444; background: #0f131c; box-shadow: 0 0 24px rgba(239, 68, 68, 0.25); border-radius: 8px;">
+        <h1 style="color: #ef4444; font-size: 32px; letter-spacing: 2px; margin-bottom: 8px; text-shadow: 0 0 12px rgba(239,68,68,0.5);">
+          CRITICAL SYSTEM FAILURE
+        </h1>
+        <p style="color: #94a3b8; font-size: 14px; margin-bottom: 24px;">
+          SURCHAUFFE CRITIQUE DU SUBSTRAT // SÉCURITÉ MATÉRIELLE DÉCLENCHÉE
+        </p>
+
+        <div style="background: #080d16; border: 1px solid #1e293b; padding: 20px; border-radius: 6px; text-align: left; margin-bottom: 24px; font-size: 14px;">
+          <div style="display: flex; justify-content: space-between; margin-bottom: 10px; color: #94a3b8;">
+            <span>PUCES SURCHAUFFÉES :</span>
+            <strong style="color: #fbbf24;">${pucesHeated} / 8</strong>
+          </div>
+          <div style="display: flex; justify-content: space-between; margin-bottom: 10px; color: #94a3b8;">
+            <span>TEMPS DE SURVIE :</span>
+            <strong style="color: #f8fafc;">${rawTimeFormatted}</strong>
+          </div>
+          <div style="display: flex; justify-content: space-between; color: #94a3b8;">
+            <span>NEUTRALISATIONS :</span>
+            <strong style="color: #38bdf8;">${score.kills}</strong>
+          </div>
+        </div>
+
+        <button id="btn-restart" style="background: #ef4444; color: #ffffff; border: none; padding: 14px 28px; font-size: 15px; font-weight: 800; font-family: inherit; border-radius: 4px; cursor: pointer; transition: transform 0.1s, box-shadow 0.1s; box-shadow: 0 0 14px rgba(239,68,68,0.4);">
+          [R] REDÉMARRER LE SYSTÈME
         </button>
       </div>
     `
 
-    this.container.style.display = 'flex'
-
-    const restartHandler = () => {
-      window.removeEventListener('keydown', keyHandler)
-      this.hide()
-      onRestart()
-    }
-
-    const keyHandler = (e: KeyboardEvent) => {
-      if (e.code === 'KeyR') {
-        restartHandler()
-      }
-    }
-
-    window.addEventListener('keydown', keyHandler)
-    document.getElementById('btn-restart-game')?.addEventListener('click', restartHandler)
+    const btn = document.getElementById('btn-restart')
+    btn?.addEventListener('click', onRestart)
   }
 
   hide(): void {
-    if (this.container) {
-      this.container.style.display = 'none'
-    }
+    this.container.style.display = 'none'
   }
 }

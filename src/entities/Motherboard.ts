@@ -1,8 +1,9 @@
 import * as THREE from 'three'
 import { MotherboardTextureGenerator } from './MotherboardTextureGenerator'
 
-// PlayStation 1 PU-8 Motherboard + Industrial Gray PlayStation Metal Chassis & Enclosure Floor
-// High-density SMD components, authentic fictionalized labels (SOLI, SEK), and 3D Platform Height System
+// PlayStation 1 PU-8 Motherboard + Green Cutting Mat Workshop Floor
+// High-fidelity reproduction of PU-8 motherboard with SOLI and SEC parody silkscreens,
+// dense SMD component clusters, and 3D platform support height for jump landing.
 
 export interface ComponentCollider {
   x: number
@@ -21,19 +22,18 @@ export class Motherboard {
   constructor(scene: THREE.Scene, width = 48, depth = 36) {
     this.group = new THREE.Group()
 
-    // 1. Industrial PlayStation Gray Metal Chassis / Floor (84m x 64m)
-    const chassisGeo = new THREE.BoxGeometry(84, 0.8, 64)
-    const chassisMat = new THREE.MeshLambertMaterial({
-      color: 0x8c96a4,
-      flatShading: true,
+    // 1. Green Workshop Cutting Mat Floor (96m x 72m) with Yellow Grid & Angle Arcs
+    const matGeo = new THREE.PlaneGeometry(96, 72)
+    matGeo.rotateX(-Math.PI / 2)
+    const matTex = MotherboardTextureGenerator.createCuttingMatTexture()
+    const matMaterial = new THREE.MeshLambertMaterial({
+      map: matTex,
+      color: 0xffffff,
     })
-    const chassis = new THREE.Mesh(chassisGeo, chassisMat)
-    chassis.position.set(width / 2, -0.8, depth / 2)
-    chassis.receiveShadow = true
-    this.group.add(chassis)
-
-    // Gray PS1 Ventilation Grilles & Console Casing Details
-    this.buildConsoleChassisDetails(width, depth)
+    const cuttingMat = new THREE.Mesh(matGeo, matMaterial)
+    cuttingMat.position.set(width / 2, -0.72, depth / 2)
+    cuttingMat.receiveShadow = true
+    this.group.add(cuttingMat)
 
     // 2. Vibrant PlayStation PCB Green Substrate (48m x 36m)
     const pcbGeo = new THREE.BoxGeometry(width, 0.7, depth)
@@ -46,7 +46,7 @@ export class Motherboard {
     pcb.receiveShadow = true
     this.group.add(pcb)
 
-    // Gold Grounding Perimeter Edge Trace
+    // Gold Grounding Perimeter Edge Trace & Corner Solder Pads
     const goldMat = new THREE.MeshLambertMaterial({ color: 0xd4af37, flatShading: true })
     const borderT = new THREE.Mesh(new THREE.BoxGeometry(width, 0.72, 0.6), goldMat)
     borderT.position.set(width / 2, -0.34, 0.3)
@@ -64,26 +64,26 @@ export class Motherboard {
     // 4. Top Edge: Metal RF Shielding Housing + 3x RCA Jacks + AV Multi Out + Parallel I/O + Black Connector
     this.buildTopConnectorRack(width * 0.48, 1.4)
 
-    // 5. Right Side: IC101 CPU (SOLI MIPS R3000A / CXD8530BQ) + 4x SEK TSOP RAM Chips
+    // 5. Right Side: IC101 CPU (SOLI MIPS R3000A / CXD8530BQ) + 4x SEC TSOP RAM Chips
     this.buildCpuAndRam(36, 21)
 
-    // 6. Center-Right: IC201 GPU (SOLI CXD8514Q) + 2x SEK VRAM Chips
+    // 6. Center-Right: IC201 GPU (SOLI CXD8514Q) + 2x SEC VRAM Chips
     this.buildGpuAndVram(28, 19)
 
-    // 7. Top-Left / Center-Left: SPU (CXD2922Q) + Mechacon (CXD1815Q) + DSP (CXD2510Q)
+    // 7. Top-Left / Center-Left: SPU (CXD2922Q) + Mechacon (CXD1815Q) + DSP (CXD2510Q) + SEC SPU RAM
     this.buildSoundAndCdProcessing(16, 12)
 
     // 8. Top-Left Cluster of 6 Silver Electrolytic Capacitors (C514, C517, C518)
     this.buildCapacitorCluster(7, 6)
 
-    // 9. Bottom-Left: Laser Sled Connector (CN702) + PSU Connector (CCP2E20)
+    // 9. Dense SMD Passives & Miniature Aluminum Capacitors
+    this.buildDenseSmdPassives()
+
+    // 10. Crystal Oscillators (X101 & X102)
+    this.buildCrystalOscillators()
+
+    // 11. Bottom-Left: Laser Sled Connector (CN702) + PSU Connector (CCP2E20)
     this.buildLaserAndPowerConnectors(8, 26)
-
-    // 10. Oscillator Quartz Crystal Can X101
-    this.buildQuartzOscillator(31, 26)
-
-    // 11. Dense SMD Resistor/Capacitor Arrays (100+ components around chips)
-    this.buildDenseSmdComponents(width, depth)
 
     // 12. Bottom Solder Pad Array "0 1 2 3 4 5 6 7 8 9"
     this.buildBottomSolderPads(width / 2, depth - 2.0)
@@ -94,31 +94,6 @@ export class Motherboard {
     scene.add(this.group)
   }
 
-  private buildConsoleChassisDetails(width: number, depth: number): void {
-    const ventMat = new THREE.MeshLambertMaterial({ color: 0x4a5568, flatShading: true })
-    const screwMat = new THREE.MeshLambertMaterial({ color: 0xc4cdd5, flatShading: true })
-
-    for (let i = 0; i < 14; i++) {
-      const ventL = new THREE.Mesh(new THREE.BoxGeometry(10.0, 0.05, 0.45), ventMat)
-      ventL.position.set(-8.0, -0.38, (depth / 2) - 13 + i * 2.0)
-      const ventR = new THREE.Mesh(new THREE.BoxGeometry(10.0, 0.05, 0.45), ventMat)
-      ventR.position.set(width + 8.0, -0.38, (depth / 2) - 13 + i * 2.0)
-      this.group.add(ventL, ventR)
-    }
-
-    const screwCorners = [
-      { x: 1.2, z: 1.2 },
-      { x: width - 1.2, z: 1.2 },
-      { x: 1.2, z: depth - 1.2 },
-      { x: width - 1.2, z: depth - 1.2 },
-    ]
-    for (const sc of screwCorners) {
-      const screw = new THREE.Mesh(new THREE.CylinderGeometry(0.5, 0.5, 0.1, 8), screwMat)
-      screw.position.set(sc.x, 0.05, sc.z)
-      this.group.add(screw)
-    }
-  }
-
   private buildSilkscreenPU8(width: number, depth: number): void {
     const whiteMat = new THREE.MeshBasicMaterial({ color: 0xffffff })
 
@@ -126,9 +101,9 @@ export class Motherboard {
     puLabel.position.set(2.4, 0.02, 14.0)
     this.group.add(puLabel)
 
-    const soliLogo = new THREE.Mesh(new THREE.BoxGeometry(4.2, 0.02, 0.8), whiteMat)
-    soliLogo.position.set(25.0, 0.02, 12.0)
-    this.group.add(soliLogo)
+    const soliBanner = new THREE.Mesh(new THREE.BoxGeometry(4.2, 0.02, 0.8), whiteMat)
+    soliBanner.position.set(25.0, 0.02, 12.0)
+    this.group.add(soliBanner)
 
     const cautionBanner = new THREE.Mesh(new THREE.BoxGeometry(14.0, 0.02, 0.6), whiteMat)
     cautionBanner.position.set(20.0, 0.02, depth - 3.2)
@@ -168,42 +143,45 @@ export class Motherboard {
   }
 
   private buildCpuAndRam(x: number, z: number): void {
-    const chipMat = new THREE.MeshLambertMaterial({ color: 0x181b22, flatShading: true })
-    const cpuTex = MotherboardTextureGenerator.createCpuTexture()
-    const cpuLabelMat = new THREE.MeshBasicMaterial({ map: cpuTex })
+    const chipMat = new THREE.MeshLambertMaterial({ color: 0x15181e, flatShading: true })
     const pinMat = new THREE.MeshLambertMaterial({ color: 0xd0d8e0, flatShading: true })
 
     const cpuGroup = new THREE.Group()
     cpuGroup.position.set(x, 0, z)
 
-    const cpuBody = new THREE.Mesh(new THREE.BoxGeometry(6.6, 0.55, 6.6), chipMat)
+    const cpuBody = new THREE.Mesh(new THREE.BoxGeometry(6.5, 0.55, 6.5), chipMat)
     cpuBody.position.y = 0.275
     cpuBody.castShadow = true
     cpuBody.receiveShadow = true
     cpuGroup.add(cpuBody)
 
-    // CPU Top Decal with SOLI CXD8530BQ
-    const cpuDecal = new THREE.Mesh(new THREE.PlaneGeometry(6.2, 6.2), cpuLabelMat)
-    cpuDecal.rotateX(-Math.PI / 2)
-    cpuDecal.position.y = 0.56
-    cpuGroup.add(cpuDecal)
+    // Textured SOLI CPU Silkscreen Plate
+    const cpuTex = MotherboardTextureGenerator.createCpuTexture()
+    const cpuFaceMat = new THREE.MeshLambertMaterial({ map: cpuTex, color: 0xffffff })
+    const cpuPlate = new THREE.Mesh(new THREE.PlaneGeometry(6.2, 6.2), cpuFaceMat)
+    cpuPlate.rotateX(-Math.PI / 2)
+    cpuPlate.position.y = 0.56
+    cpuGroup.add(cpuPlate)
 
-    const pinX1 = new THREE.Mesh(new THREE.BoxGeometry(7.2, 0.12, 0.25), pinMat)
+    // QFP Metallic Pins on 4 sides
+    const pinX1 = new THREE.Mesh(new THREE.BoxGeometry(7.1, 0.12, 0.25), pinMat)
     pinX1.position.set(0, 0.12, 3.4)
-    const pinX2 = new THREE.Mesh(new THREE.BoxGeometry(7.2, 0.12, 0.25), pinMat)
+    const pinX2 = new THREE.Mesh(new THREE.BoxGeometry(7.1, 0.12, 0.25), pinMat)
     pinX2.position.set(0, 0.12, -3.4)
-    const pinZ1 = new THREE.Mesh(new THREE.BoxGeometry(0.25, 0.12, 7.2), pinMat)
+    const pinZ1 = new THREE.Mesh(new THREE.BoxGeometry(0.25, 0.12, 7.1), pinMat)
     pinZ1.position.set(3.4, 0.12, 0)
-    const pinZ2 = new THREE.Mesh(new THREE.BoxGeometry(0.25, 0.12, 7.2), pinMat)
+    const pinZ2 = new THREE.Mesh(new THREE.BoxGeometry(0.25, 0.12, 7.1), pinMat)
     pinZ2.position.set(-3.4, 0.12, 0)
     cpuGroup.add(pinX1, pinX2, pinZ1, pinZ2)
 
     this.group.add(cpuGroup)
-    this.addBoxCollider(x, z, 7.2, 7.2, 0.58)
+    this.addBoxCollider(x, z, 7.2, 7.2, 0.8)
 
-    // 4 SEK TSOP RAM Chips
+    // 4x SEC TSOP RAM Chips
     const ramTex = MotherboardTextureGenerator.createRamTexture()
-    const ramLabelMat = new THREE.MeshBasicMaterial({ map: ramTex })
+    const ramFaceMat = new THREE.MeshLambertMaterial({ map: ramTex, color: 0xffffff })
+    const ramMat = new THREE.MeshLambertMaterial({ color: 0x1a202c, flatShading: true })
+
     const ramOffsets = [
       { dx: -2.5, dz: 6.2 },
       { dx: 2.5, dz: 6.2 },
@@ -211,94 +189,106 @@ export class Motherboard {
       { dx: 2.5, dz: 10.2 },
     ]
     for (const ro of ramOffsets) {
-      const ram = new THREE.Mesh(new THREE.BoxGeometry(3.6, 0.35, 2.2), chipMat)
-      ram.position.set(x + ro.dx, 0.175, z + ro.dz)
+      const ramGroup = new THREE.Group()
+      ramGroup.position.set(x + ro.dx, 0, z + ro.dz)
+
+      const ram = new THREE.Mesh(new THREE.BoxGeometry(3.6, 0.35, 2.2), ramMat)
+      ram.position.y = 0.175
       ram.castShadow = true
-      this.group.add(ram)
+      ramGroup.add(ram)
 
-      const ramDecal = new THREE.Mesh(new THREE.PlaneGeometry(3.4, 2.0), ramLabelMat)
-      ramDecal.rotateX(-Math.PI / 2)
-      ramDecal.position.set(x + ro.dx, 0.36, z + ro.dz)
-      this.group.add(ramDecal)
+      const ramPlate = new THREE.Mesh(new THREE.PlaneGeometry(3.4, 2.0), ramFaceMat)
+      ramPlate.rotateX(-Math.PI / 2)
+      ramPlate.position.y = 0.36
+      ramGroup.add(ramPlate)
 
-      this.addBoxCollider(x + ro.dx, z + ro.dz, 3.6, 2.2, 0.38)
+      this.group.add(ramGroup)
+      this.addBoxCollider(x + ro.dx, z + ro.dz, 3.6, 2.2, 0.5)
     }
   }
 
   private buildGpuAndVram(x: number, z: number): void {
-    const gpuMat = new THREE.MeshLambertMaterial({ color: 0x1c202a, flatShading: true })
-    const gpuTex = MotherboardTextureGenerator.createGpuTexture()
-    const gpuLabelMat = new THREE.MeshBasicMaterial({ map: gpuTex })
+    const gpuMat = new THREE.MeshLambertMaterial({ color: 0x1f242d, flatShading: true })
+    const spreaderMat = new THREE.MeshLambertMaterial({ color: 0x8899aa, flatShading: true })
     const vramMat = new THREE.MeshLambertMaterial({ color: 0x181c24, flatShading: true })
-    const ramTex = MotherboardTextureGenerator.createRamTexture()
-    const ramLabelMat = new THREE.MeshBasicMaterial({ map: ramTex })
+    const vramTex = MotherboardTextureGenerator.createRamTexture()
+    const vramFaceMat = new THREE.MeshLambertMaterial({ map: vramTex, color: 0xffffff })
 
     const gpu = new THREE.Mesh(new THREE.BoxGeometry(5.8, 0.5, 5.8), gpuMat)
     gpu.position.set(x, 0.25, z)
     gpu.castShadow = true
     this.group.add(gpu)
 
-    const gpuDecal = new THREE.Mesh(new THREE.PlaneGeometry(5.4, 5.4), gpuLabelMat)
-    gpuDecal.rotateX(-Math.PI / 2)
-    gpuDecal.position.set(x, 0.51, z)
-    this.group.add(gpuDecal)
+    const gpuTex = MotherboardTextureGenerator.createGpuTexture()
+    const gpuFaceMat = new THREE.MeshLambertMaterial({ map: gpuTex, color: 0xffffff })
+    const gpuPlate = new THREE.Mesh(new THREE.PlaneGeometry(5.4, 5.4), gpuFaceMat)
+    gpuPlate.rotateX(-Math.PI / 2)
+    gpuPlate.position.set(x, 0.51, z)
+    this.group.add(gpuPlate)
 
-    this.addBoxCollider(x, z, 6.0, 6.0, 0.55)
+    const spreader = new THREE.Mesh(new THREE.BoxGeometry(4.2, 0.3, 4.2), spreaderMat)
+    spreader.position.set(x, 0.65, z)
+    spreader.castShadow = true
+    this.group.add(spreader)
+    this.addBoxCollider(x, z, 6.0, 6.0, 0.95)
 
-    const vram1 = new THREE.Mesh(new THREE.BoxGeometry(4.2, 0.35, 2.6), vramMat)
-    vram1.position.set(x - 5.5, 0.175, z - 1.8)
-    vram1.castShadow = true
-    const vram2 = new THREE.Mesh(new THREE.BoxGeometry(4.2, 0.35, 2.6), vramMat)
-    vram2.position.set(x - 5.5, 0.175, z + 2.2)
-    vram2.castShadow = true
-    this.group.add(vram1, vram2)
+    // 2x VRAM Chips
+    for (const v of [{ dz: -1.8 }, { dz: 2.2 }]) {
+      const vram = new THREE.Mesh(new THREE.BoxGeometry(4.2, 0.35, 2.6), vramMat)
+      vram.position.set(x - 5.5, 0.175, z + v.dz)
+      vram.castShadow = true
+      this.group.add(vram)
 
-    const vd1 = new THREE.Mesh(new THREE.PlaneGeometry(4.0, 2.4), ramLabelMat)
-    vd1.rotateX(-Math.PI / 2)
-    vd1.position.set(x - 5.5, 0.36, z - 1.8)
-    const vd2 = new THREE.Mesh(new THREE.PlaneGeometry(4.0, 2.4), ramLabelMat)
-    vd2.rotateX(-Math.PI / 2)
-    vd2.position.set(x - 5.5, 0.36, z + 2.2)
-    this.group.add(vd1, vd2)
+      const vPlate = new THREE.Mesh(new THREE.PlaneGeometry(4.0, 2.4), vramFaceMat)
+      vPlate.rotateX(-Math.PI / 2)
+      vPlate.position.set(x - 5.5, 0.36, z + v.dz)
+      this.group.add(vPlate)
 
-    this.addBoxCollider(x - 5.5, z - 1.8, 4.2, 2.6, 0.38)
-    this.addBoxCollider(x - 5.5, z + 2.2, 4.2, 2.6, 0.38)
+      this.addBoxCollider(x - 5.5, z + v.dz, 4.2, 2.6, 0.5)
+    }
   }
 
   private buildSoundAndCdProcessing(x: number, z: number): void {
     const chipMat = new THREE.MeshLambertMaterial({ color: 0x161a22, flatShading: true })
-    const mechaTex = MotherboardTextureGenerator.createMechaconTexture()
-    const mechaMat = new THREE.MeshBasicMaterial({ map: mechaTex })
-    const spuTex = MotherboardTextureGenerator.createSpuTexture()
-    const spuMat = new THREE.MeshBasicMaterial({ map: spuTex })
+    const spuTex = MotherboardTextureGenerator.createSpuTexture('CXD2922Q SOLI')
+    const mechaTex = MotherboardTextureGenerator.createSpuTexture('CXD1815Q SOLI')
+    const dspTex = MotherboardTextureGenerator.createSpuTexture('CXD2510Q SOLI')
 
+    // Mechacon
     const mechacon = new THREE.Mesh(new THREE.BoxGeometry(4.8, 0.4, 4.8), chipMat)
     mechacon.position.set(x, 0.2, z)
     mechacon.castShadow = true
     this.group.add(mechacon)
 
-    const mechaDecal = new THREE.Mesh(new THREE.PlaneGeometry(4.4, 4.4), mechaMat)
-    mechaDecal.rotateX(-Math.PI / 2)
-    mechaDecal.position.set(x, 0.41, z)
-    this.group.add(mechaDecal)
-    this.addBoxCollider(x, z, 5.0, 5.0, 0.45)
+    const mechaPlate = new THREE.Mesh(new THREE.PlaneGeometry(4.4, 4.4), new THREE.MeshLambertMaterial({ map: mechaTex }))
+    mechaPlate.rotateX(-Math.PI / 2)
+    mechaPlate.position.set(x, 0.41, z)
+    this.group.add(mechaPlate)
+    this.addBoxCollider(x, z, 5.0, 5.0, 0.6)
 
+    // SPU
     const spu = new THREE.Mesh(new THREE.BoxGeometry(4.8, 0.4, 4.8), chipMat)
     spu.position.set(x + 5.8, 0.2, z)
     spu.castShadow = true
     this.group.add(spu)
 
-    const spuDecal = new THREE.Mesh(new THREE.PlaneGeometry(4.4, 4.4), spuMat)
-    spuDecal.rotateX(-Math.PI / 2)
-    spuDecal.position.set(x + 5.8, 0.41, z)
-    this.group.add(spuDecal)
-    this.addBoxCollider(x + 5.8, z, 5.0, 5.0, 0.45)
+    const spuPlate = new THREE.Mesh(new THREE.PlaneGeometry(4.4, 4.4), new THREE.MeshLambertMaterial({ map: spuTex }))
+    spuPlate.rotateX(-Math.PI / 2)
+    spuPlate.position.set(x + 5.8, 0.41, z)
+    this.group.add(spuPlate)
+    this.addBoxCollider(x + 5.8, z, 5.0, 5.0, 0.6)
 
+    // DSP
     const dsp = new THREE.Mesh(new THREE.BoxGeometry(3.6, 0.4, 6.2), chipMat)
     dsp.position.set(x - 5.8, 0.2, z + 2.0)
     dsp.castShadow = true
     this.group.add(dsp)
-    this.addBoxCollider(x - 5.8, z + 2.0, 3.6, 6.2, 0.45)
+
+    const dspPlate = new THREE.Mesh(new THREE.PlaneGeometry(3.2, 5.8), new THREE.MeshLambertMaterial({ map: dspTex }))
+    dspPlate.rotateX(-Math.PI / 2)
+    dspPlate.position.set(x - 5.8, 0.41, z + 2.0)
+    this.group.add(dspPlate)
+    this.addBoxCollider(x - 5.8, z + 2.0, 3.6, 6.2, 0.6)
   }
 
   private buildCapacitorCluster(x: number, z: number): void {
@@ -330,6 +320,62 @@ export class Motherboard {
     }
   }
 
+  private buildDenseSmdPassives(): void {
+    const smdMat = new THREE.MeshLambertMaterial({ color: 0x8b5a2b, flatShading: true }) // Tan ceramic 0805
+    const resMat = new THREE.MeshLambertMaterial({ color: 0x1e293b, flatShading: true }) // Black resistor 0805
+    const alumMat = new THREE.MeshLambertMaterial({ color: 0x94a3b8, flatShading: true })
+    const blueTopMat = new THREE.MeshLambertMaterial({ color: 0x0284c7, flatShading: true })
+
+    // 1. Array of 20 miniature aluminum SMD capacitors
+    const smdCapPositions = [
+      { x: 14, z: 20 }, { x: 15.5, z: 20 }, { x: 17, z: 20 },
+      { x: 22, z: 12 }, { x: 23.5, z: 12 }, { x: 25, z: 12 },
+      { x: 30, z: 28 }, { x: 31.5, z: 28 }, { x: 33, z: 28 },
+      { x: 10, z: 15 }, { x: 10, z: 16.5 }, { x: 10, z: 18 },
+      { x: 42, z: 18 }, { x: 42, z: 20 }, { x: 42, z: 22 },
+      { x: 20, z: 28 }, { x: 21.5, z: 28 }, { x: 23, z: 28 },
+    ]
+
+    for (const sc of smdCapPositions) {
+      const barrel = new THREE.Mesh(new THREE.CylinderGeometry(0.35, 0.35, 0.7, 8), alumMat)
+      barrel.position.set(sc.x, 0.35, sc.z)
+      barrel.castShadow = true
+      const bTop = new THREE.Mesh(new THREE.CylinderGeometry(0.34, 0.34, 0.06, 8), blueTopMat)
+      bTop.position.set(sc.x, 0.72, sc.z)
+      this.group.add(barrel, bTop)
+      this.addCylinderCollider(sc.x, sc.z, 0.45, 0.75)
+    }
+
+    // 2. Array of 40 Ceramic and Resistor SMD packs around processors
+    for (let i = 0; i < 35; i++) {
+      const rx = 12 + ((i * 7) % 28)
+      const rz = 8 + ((i * 11) % 24)
+      const isRes = i % 2 === 0
+      const comp = new THREE.Mesh(new THREE.BoxGeometry(0.7, 0.2, 0.45), isRes ? resMat : smdMat)
+      comp.position.set(rx, 0.1, rz)
+      comp.castShadow = true
+      this.group.add(comp)
+    }
+  }
+
+  private buildCrystalOscillators(): void {
+    const silverMat = new THREE.MeshLambertMaterial({ color: 0xecf0f1, flatShading: true })
+
+    // X101 (Near GPU)
+    const x101 = new THREE.Mesh(new THREE.BoxGeometry(2.4, 0.6, 1.2), silverMat)
+    x101.position.set(31.5, 0.3, 25.5)
+    x101.castShadow = true
+    this.group.add(x101)
+    this.addBoxCollider(31.5, 25.5, 2.4, 1.2, 0.7)
+
+    // X102 (Near SPU)
+    const x102 = new THREE.Mesh(new THREE.BoxGeometry(2.4, 0.6, 1.2), silverMat)
+    x102.position.set(13.5, 0.3, 6.5)
+    x102.castShadow = true
+    this.group.add(x102)
+    this.addBoxCollider(13.5, 6.5, 2.4, 1.2, 0.7)
+  }
+
   private buildLaserAndPowerConnectors(x: number, z: number): void {
     const blackMat = new THREE.MeshLambertMaterial({ color: 0x1a1a1a, flatShading: true })
     const whiteMat = new THREE.MeshLambertMaterial({ color: 0xf0f4f8, flatShading: true })
@@ -339,58 +385,13 @@ export class Motherboard {
     laserSlot.position.set(x, 0.3, z)
     laserSlot.castShadow = true
     this.group.add(laserSlot)
-    this.addBoxCollider(x, z, 2.0, 5.0, 0.65)
+    this.addBoxCollider(x, z, 2.0, 5.0, 0.8)
 
     const psuPlug = new THREE.Mesh(new THREE.BoxGeometry(1.8, 1.4, 4.5), whiteMat)
     psuPlug.position.set(x - 4.5, 0.7, z + 3.0)
     psuPlug.castShadow = true
     this.group.add(psuPlug)
     this.addBoxCollider(x - 4.5, z + 3.0, 1.8, 4.5, 1.4)
-  }
-
-  private buildQuartzOscillator(x: number, z: number): void {
-    const silverMat = new THREE.MeshLambertMaterial({ color: 0xe2e8f0, flatShading: true })
-    const crystal = new THREE.Mesh(new THREE.BoxGeometry(1.2, 0.8, 3.2), silverMat)
-    crystal.position.set(x, 0.4, z)
-    crystal.castShadow = true
-    this.group.add(crystal)
-    this.addBoxCollider(x, z, 1.4, 3.4, 0.8)
-  }
-
-  private buildDenseSmdComponents(width: number, depth: number): void {
-    const smdMatBlack = new THREE.MeshLambertMaterial({ color: 0x111827, flatShading: true })
-    const smdMatBeige = new THREE.MeshLambertMaterial({ color: 0xc4a482, flatShading: true })
-    const smdMatSilver = new THREE.MeshLambertMaterial({ color: 0xe5e7eb, flatShading: true })
-
-    // Dense SMD Clusters around CPU, GPU, SPU & Power
-    const smdClusters = [
-      { cx: 36, cz: 16, count: 18, radius: 4.5 },
-      { cx: 36, cz: 28, count: 16, radius: 4.2 },
-      { cx: 28, cz: 14, count: 20, radius: 4.0 },
-      { cx: 28, cz: 24, count: 18, radius: 4.2 },
-      { cx: 16, cz: 18, count: 24, radius: 4.5 },
-      { cx: 10, cz: 14, count: 16, radius: 3.5 },
-      { cx: 22, cz: 30, count: 20, radius: 5.0 },
-    ]
-
-    for (const cluster of smdClusters) {
-      for (let i = 0; i < cluster.count; i++) {
-        const angle = (i / cluster.count) * Math.PI * 2 + (i % 3) * 0.3
-        const dist = 2.4 + (i % 4) * 0.7
-        const px = cluster.cx + Math.cos(angle) * dist
-        const pz = cluster.cz + Math.sin(angle) * dist
-
-        if (px < 2 || px > width - 2 || pz < 2 || pz > depth - 2) continue
-
-        const isCap = i % 3 === 0
-        const isBeige = i % 3 === 1
-        const mat = isCap ? smdMatSilver : isBeige ? smdMatBeige : smdMatBlack
-        const smd = new THREE.Mesh(new THREE.BoxGeometry(0.4, 0.15, 0.25), mat)
-        smd.position.set(px, 0.08, pz)
-        smd.rotation.y = (i % 2) * (Math.PI / 2)
-        this.group.add(smd)
-      }
-    }
   }
 
   private buildBottomSolderPads(x: number, z: number): void {
@@ -432,8 +433,8 @@ export class Motherboard {
     this.colliders.push({
       x,
       z,
-      halfW: width / 2 + 0.3,
-      halfD: depth / 2 + 0.3,
+      halfW: width / 2 + 0.25,
+      halfD: depth / 2 + 0.25,
       height,
       radius: Math.sqrt(width * width + depth * depth) / 2,
     })
@@ -450,17 +451,24 @@ export class Motherboard {
     })
   }
 
-  public getFloorHeight(pX: number, pZ: number): number {
+  /**
+   * Returns the highest standing floor height at (pX, pZ) so the player
+   * can land and walk on top of chips and heatsinks during jumps!
+   */
+  public getSupportHeight(pX: number, pZ: number, playerRadius = 0.45): number {
     let maxHeight = 0
+
     for (const c of this.colliders) {
       const dx = Math.abs(pX - c.x)
       const dz = Math.abs(pZ - c.z)
-      if (dx <= c.halfW && dz <= c.halfD) {
+
+      if (dx <= c.halfW - 0.1 && dz <= c.halfD - 0.1) {
         if (c.height > maxHeight) {
           maxHeight = c.height
         }
       }
     }
+
     return maxHeight
   }
 
@@ -470,6 +478,7 @@ export class Motherboard {
     let collided = false
 
     for (const c of this.colliders) {
+      // If player is on top of or above the component, allow free passage
       if (playerY >= c.height - 0.08) continue
 
       const dx = pX - c.x

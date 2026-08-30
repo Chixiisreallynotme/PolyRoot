@@ -69,9 +69,9 @@ void main() {
   float scanline = 0.96 + 0.04 * sin(uv.y * uResolution.y * 3.14159265);
   quantized *= scanline;
 
-  // 7. Trauma glitch color inversion
-  if (uGlitch > 0.5) {
-    quantized = 1.0 - quantized * 0.15;
+  // 7. Trauma glitch red damage flash
+  if (uGlitch > 0.2) {
+    quantized = mix(quantized, vec3(0.9, 0.15, 0.15), clamp(uGlitch * 0.45, 0.0, 0.5));
   }
 
   gl_FragColor = vec4(quantized, color.a);
