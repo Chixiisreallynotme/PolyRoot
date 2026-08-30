@@ -73,13 +73,13 @@ export class Puce {
     scene.add(this.group)
   }
 
-  update(dt: number, isInside: boolean): boolean {
+  update(dt: number, isInside: boolean, speedMultiplier = 1.0): boolean {
     if (this.isHeated) return false
 
     this.isPlayerInside = isInside
 
     if (isInside) {
-      this.progress += dt / 3.2
+      this.progress += (dt / 3.2) * speedMultiplier
       const heatFactor = Math.min(1.0, this.progress)
 
       // Ring shifts from green to intense fiery orange/red

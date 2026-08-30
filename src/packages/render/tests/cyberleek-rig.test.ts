@@ -95,6 +95,46 @@ describe('CyberLeekRig Procedural Animation Suite', () => {
     expect(rig.isBusy()).toBe(false)
   })
 
+  it('executes Phase 2 360 Spin Attack animation with release callback', () => {
+    const { nodes } = CyberLeekRig.createModel()
+    const rig = new CyberLeekRig(nodes)
+
+    let spinReleased = false
+    rig.triggerSpinAttack(0.8, () => {
+      spinReleased = true
+    })
+
+    expect(rig.getAnimationState()).toBe('spin_attack')
+    expect(rig.isBusy()).toBe(true)
+
+    rig.update(0.4, false, 0)
+    expect(spinReleased).toBe(true)
+
+    rig.update(0.5, false, 0)
+    expect(rig.getAnimationState()).toBe('idle')
+    expect(rig.isBusy()).toBe(false)
+  })
+
+  it('executes Phase 3 Quantum Teleport Charge & Dash animations', () => {
+    const { nodes } = CyberLeekRig.createModel()
+    const rig = new CyberLeekRig(nodes)
+
+    rig.triggerTeleportCharge(0.4)
+    expect(rig.getAnimationState()).toBe('teleport_charge')
+    expect(rig.isBusy()).toBe(true)
+
+    rig.update(0.45, false, 0)
+    expect(rig.getAnimationState()).toBe('idle')
+
+    rig.triggerQuantumDash(0.45)
+    expect(rig.getAnimationState()).toBe('quantum_dash')
+    expect(rig.isBusy()).toBe(true)
+
+    rig.update(0.5, false, 0)
+    expect(rig.getAnimationState()).toBe('idle')
+    expect(rig.isBusy()).toBe(false)
+  })
+
   it('generates procedural 3D Sawtooth geometry correctly', () => {
     const geo = CyberLeekRig.createSawtoothGeometry(0.75, 0.70, 0.42, 10)
     expect(geo).toBeDefined()
@@ -106,3 +146,4 @@ describe('CyberLeekRig Procedural Animation Suite', () => {
     expect(geo.attributes.normal).toBeDefined()
   })
 })
+

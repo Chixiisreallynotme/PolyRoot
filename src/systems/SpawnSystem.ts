@@ -41,6 +41,10 @@ export class SpawnSystem {
   private projectiles: { x: number; z: number; vx: number; vz: number; active: boolean; life: number }[] = []
   private maxProjectiles = 60
 
+  // 0.5s Digital Materialization Telegraph Beacons
+  private telegraphMesh: THREE.InstancedMesh
+  private telegraphBeamMesh: THREE.InstancedMesh
+
   private spawnTimer = 0
   private spawnInterval = 1.4
 
@@ -101,16 +105,46 @@ export class SpawnSystem {
       this.projectiles.push({ x: 0, z: 0, vx: 0, vz: 0, active: false, life: 0 })
     }
 
+    // Digital Materialization Telegraph Floor Ring
+    const ringGeo = new THREE.RingGeometry(0.25, 1.35, 32)
+    ringGeo.rotateX(-Math.PI / 2)
+    const ringMat = new THREE.MeshBasicMaterial({
+      color: 0x00ffff,
+      transparent: true,
+      opacity: 0.85,
+      side: THREE.DoubleSide,
+      depthWrite: false,
+    })
+    this.telegraphMesh = new THREE.InstancedMesh(ringGeo, ringMat, this.maxTotalEnemies)
+    scene.add(this.telegraphMesh)
+
+    // Digital Materialization Telegraph Vertical Hologram Column
+    const beamGeo = new THREE.CylinderGeometry(0.3, 1.25, 2.2, 16, 1, true)
+    beamGeo.translate(0, 1.1, 0)
+    const beamMat = new THREE.MeshBasicMaterial({
+      color: 0x00ff88,
+      transparent: true,
+      opacity: 0.45,
+      side: THREE.DoubleSide,
+      depthWrite: false,
+    })
+    this.telegraphBeamMesh = new THREE.InstancedMesh(beamGeo, beamMat, this.maxTotalEnemies)
+    scene.add(this.telegraphBeamMesh)
+
     this.dummy.position.set(0, -999, 0)
     this.dummy.updateMatrix()
     for (let i = 0; i < this.maxTotalEnemies; i++) {
       btcMesh.setMatrixAt(i, this.dummy.matrix)
       dogeMesh.setMatrixAt(i, this.dummy.matrix)
       pepeMesh.setMatrixAt(i, this.dummy.matrix)
+      this.telegraphMesh.setMatrixAt(i, this.dummy.matrix)
+      this.telegraphBeamMesh.setMatrixAt(i, this.dummy.matrix)
     }
     btcMesh.instanceMatrix.needsUpdate = true
     dogeMesh.instanceMatrix.needsUpdate = true
     pepeMesh.instanceMatrix.needsUpdate = true
+    this.telegraphMesh.instanceMatrix.needsUpdate = true
+    this.telegraphBeamMesh.instanceMatrix.needsUpdate = true
 
     this.spawnInitialEnemies(24, 18)
   }
@@ -280,24 +314,31 @@ export class SpawnSystem {
     return merged || new THREE.BoxGeometry(1, 1, 1)
   }
 
-  private spawnInitialEnemies(playerX: number, playerZ: number): void {
+  private spawnInitialEnemies(playerX: number, playerZ: number, auraRadius = 1.5): void {
+    // Clamped minimum spawn distance = auraRadius + 5.0m clamped between 12m and 22m
+    const minSpawnDist = THREE.MathUtils.clamp(auraRadius + 5.0, 12.0, 22.0)
+
+    // Initial enemy positions guaranteed to be >= 12.5m away from player and inside PCB bounds
     const initialOffsets = [
-      { dx: -7, dz: -6, type: 'doge' as CryptoType },
-      { dx: 7, dz: -6, type: 'btc' as CryptoType },
-      { dx: -8, dz: 6, type: 'pepe' as CryptoType },
-      { dx: 8, dz: 6, type: 'doge' as CryptoType },
-      { dx: 0, dz: -9, type: 'btc' as CryptoType },
+      { dx: -10.0, dz: -8.0, type: 'doge' as CryptoType }, // dist = 12.8m
+      { dx: 11.0, dz: -7.0, type: 'btc' as CryptoType },   // dist = 13.0m
+      { dx: -9.5, dz: 9.0, type: 'pepe' as CryptoType },   // dist = 13.1m
+      { dx: 10.5, dz: 8.0, type: 'doge' as CryptoType },   // dist = 13.2m
+      { dx: 0.0, dz: -13.0, type: 'btc' as CryptoType },   // dist = 13.0m
     ]
 
     for (let i = 0; i < initialOffsets.length; i++) {
       const off = initialOffsets[i]
       if (!off) continue
       const def = CRYPTO_DEFS[off.type]
+      const spawnX = Math.max(3.0, Math.min(45.0, playerX + off.dx))
+      const spawnZ = Math.max(3.0, Math.min(33.0, playerZ + off.dz))
+
       this.instances.push({
         id: i,
         type: off.type,
-        x: playerX + off.dx,
-        z: playerZ + off.dz,
+        x: spawnX,
+        z: spawnZ,
         vx: 0,
         vz: 0,
         hp: def.hp,
@@ -308,6 +349,8 @@ export class SpawnSystem {
         shootCooldown: 1.5,
         animTime: Math.random() * 5,
         rotationY: 0,
+        spawnTelegraphTimer: 0.5,
+        isSpawning: true,
       })
     }
   }
@@ -320,7 +363,8 @@ export class SpawnSystem {
     motherboard?: {
       checkCollision: (x: number, z: number, radius?: number, y?: number) => { collided: boolean; pushX: number; pushZ: number }
       getSupportHeight?: (x: number, z: number, radius?: number) => number
-    }
+    },
+    auraRadius = 1.5
   ): void {
     this.spawnTimer += dt
     const effectiveInterval = Math.max(0.6, this.spawnInterval - pucesHeated * 0.12)
@@ -329,11 +373,24 @@ export class SpawnSystem {
 
     if (this.spawnTimer >= effectiveInterval && activeCount < maxAllowed) {
       this.spawnTimer = 0
-      this.spawnRandomEnemy(playerX, playerZ, pucesHeated)
+      this.spawnRandomEnemy(playerX, playerZ, pucesHeated, auraRadius)
     }
 
     for (const inst of this.instances) {
       if (!inst.active) continue
+
+      // 0.5s Digital Materialization Telegraph Gate
+      if (inst.spawnTelegraphTimer !== undefined && inst.spawnTelegraphTimer > 0) {
+        inst.spawnTelegraphTimer -= dt
+        if (inst.spawnTelegraphTimer <= 0) {
+          inst.spawnTelegraphTimer = 0
+          inst.isSpawning = false
+        }
+        inst.vx = 0
+        inst.vz = 0
+        inst.animTime += dt * 8.0
+        continue // Enemy cannot move, attack, or deal body damage while materializing
+      }
 
       inst.animTime += dt * 16.0
 
@@ -386,7 +443,13 @@ export class SpawnSystem {
     this.renderInstances(playerX, playerZ)
   }
 
-  private spawnRandomEnemy(playerX: number, playerZ: number, pucesHeated: number): void {
+  public spawnHordeBatch(playerX: number, playerZ: number, count = 4): void {
+    for (let i = 0; i < count; i++) {
+      this.spawnRandomEnemy(playerX, playerZ, 6, 1.5)
+    }
+  }
+
+  private spawnRandomEnemy(playerX: number, playerZ: number, pucesHeated: number, auraRadius = 1.5): void {
     const types: CryptoType[] = ['doge', 'doge', 'btc', 'pepe']
     if (pucesHeated >= 2) types.push('pepe', 'btc')
     if (pucesHeated >= 5) types.push('btc', 'btc', 'pepe')
@@ -394,10 +457,51 @@ export class SpawnSystem {
     const type: CryptoType = types[Math.floor(Math.random() * types.length)] ?? 'doge'
     const def = CRYPTO_DEFS[type]
 
-    const angle = Math.random() * Math.PI * 2
-    const spawnDist = 12.0 + Math.random() * 5.0
-    const x = Math.max(3, Math.min(45, playerX + Math.cos(angle) * spawnDist))
-    const z = Math.max(3, Math.min(33, playerZ + Math.sin(angle) * spawnDist))
+    // Minimum spawn distance = player.stats.auraRadius + 5.0m, clamped between 12m and 22m
+    const minSpawnDist = THREE.MathUtils.clamp(auraRadius + 5.0, 12.0, 22.0)
+    const maxSpawnDist = Math.min(22.0, Math.max(minSpawnDist + 4.0, 16.0))
+
+    let x = playerX
+    let z = playerZ
+    let foundValid = false
+
+    for (let attempt = 0; attempt < 16; attempt++) {
+      const angle = Math.random() * Math.PI * 2
+      const spawnDist = minSpawnDist + Math.random() * (maxSpawnDist - minSpawnDist)
+      const candidateX = Math.max(3.0, Math.min(45.0, playerX + Math.cos(angle) * spawnDist))
+      const candidateZ = Math.max(3.0, Math.min(33.0, playerZ + Math.sin(angle) * spawnDist))
+      const actualDist = Math.hypot(candidateX - playerX, candidateZ - playerZ)
+
+      if (actualDist >= minSpawnDist) {
+        x = candidateX
+        z = candidateZ
+        foundValid = true
+        break
+      }
+    }
+
+    if (!foundValid) {
+      // Fallback: pick farthest safe motherboard corner to strictly respect distance
+      const corners = [
+        { cx: 4.0, cz: 4.0 },
+        { cx: 44.0, cz: 4.0 },
+        { cx: 4.0, cz: 32.0 },
+        { cx: 44.0, cz: 32.0 },
+        { cx: 24.0, cz: 4.0 },
+        { cx: 24.0, cz: 32.0 },
+      ]
+      let maxDist = -1
+      let bestCorner = corners[0]!
+      for (const c of corners) {
+        const d = Math.hypot(c.cx - playerX, c.cz - playerZ)
+        if (d > maxDist) {
+          maxDist = d
+          bestCorner = c
+        }
+      }
+      x = bestCorner.cx
+      z = bestCorner.cz
+    }
 
     const existing = this.instances.find((e) => !e.active)
     if (existing) {
@@ -414,6 +518,8 @@ export class SpawnSystem {
       existing.shootCooldown = 1.0 + Math.random()
       existing.animTime = Math.random() * 10
       existing.rotationY = 0
+      existing.spawnTelegraphTimer = 0.5
+      existing.isSpawning = true
     } else if (this.instances.length < this.maxTotalEnemies) {
       this.instances.push({
         id: this.instances.length,
@@ -430,6 +536,8 @@ export class SpawnSystem {
         shootCooldown: 1.0 + Math.random(),
         animTime: Math.random() * 10,
         rotationY: 0,
+        spawnTelegraphTimer: 0.5,
+        isSpawning: true,
       })
     }
   }
@@ -519,9 +627,36 @@ export class SpawnSystem {
 
   private renderInstances(playerX = 24, playerZ = 18): void {
     const counts: Record<CryptoType, number> = { btc: 0, doge: 0, pepe: 0 }
+    let telegraphCount = 0
 
     for (const inst of this.instances) {
       if (!inst.active) continue
+
+      const baseFloorY = inst.y ?? 0
+      const isMaterializing = inst.spawnTelegraphTimer !== undefined && inst.spawnTelegraphTimer > 0
+
+      // Render glowing telegraph beacon while materializing
+      if (isMaterializing && telegraphCount < this.maxTotalEnemies) {
+        const progress = Math.max(0, Math.min(1, 1.0 - (inst.spawnTelegraphTimer ?? 0) / 0.5))
+        const ringScale = 0.5 + progress * 0.85
+        const beamScale = Math.sin(progress * Math.PI)
+
+        // Telegraph floor circle
+        this.dummy.position.set(inst.x, baseFloorY + 0.04, inst.z)
+        this.dummy.rotation.set(0, progress * Math.PI * 4, 0)
+        this.dummy.scale.set(ringScale, 1, ringScale)
+        this.dummy.updateMatrix()
+        this.telegraphMesh.setMatrixAt(telegraphCount, this.dummy.matrix)
+
+        // Telegraph vertical hologram beam
+        this.dummy.position.set(inst.x, baseFloorY, inst.z)
+        this.dummy.rotation.set(0, -progress * Math.PI * 2, 0)
+        this.dummy.scale.set(ringScale * 0.9, beamScale, ringScale * 0.9)
+        this.dummy.updateMatrix()
+        this.telegraphBeamMesh.setMatrixAt(telegraphCount, this.dummy.matrix)
+
+        telegraphCount++
+      }
 
       const mesh = this.meshes.get(inst.type)
       if (!mesh) continue
@@ -532,9 +667,8 @@ export class SpawnSystem {
       const dx = playerX - inst.x
       const dz = playerZ - inst.z
       const dist = Math.sqrt(dx * dx + dz * dz)
-      const isAttacking = dist < 3.8
+      const isAttacking = dist < 3.8 && !isMaterializing
 
-      const baseFloorY = inst.y ?? 0
       let posX = inst.x
       let posY = baseFloorY
       let posZ = inst.z
@@ -545,7 +679,20 @@ export class SpawnSystem {
       let scaleY = 1.0
       let scaleZ = 1.0
 
-      if (inst.type === 'btc') {
+      if (isMaterializing) {
+        // Digital Rez-In / Materialization Effect
+        const progress = Math.max(0.05, Math.min(1, 1.0 - (inst.spawnTelegraphTimer ?? 0) / 0.5))
+        const glitchFlicker = (Math.random() - 0.5) * 0.12 * (1.0 - progress)
+
+        posX += glitchFlicker
+        posY = baseFloorY + (1.0 - progress) * -0.4
+        posZ += glitchFlicker
+
+        scaleY = progress * 1.05
+        scaleX = 0.4 + progress * 0.6
+        scaleZ = 0.4 + progress * 0.6
+        rotX = -0.28
+      } else if (inst.type === 'btc') {
         // 1. BTC: Heavyweight boxing champion with rapid alternating left/right boxing glove jabs
         if (isAttacking) {
           const tAtk = inst.animTime * 3.8
@@ -655,6 +802,7 @@ export class SpawnSystem {
       mesh.setMatrixAt(index, this.dummy.matrix)
     }
 
+    // Hide unused character meshes
     this.dummy.position.set(0, -999, 0)
     this.dummy.updateMatrix()
     for (const type of ['btc', 'doge', 'pepe'] as CryptoType[]) {
@@ -665,6 +813,14 @@ export class SpawnSystem {
       }
       mesh.instanceMatrix.needsUpdate = true
     }
+
+    // Hide unused telegraph beacons
+    for (let i = telegraphCount; i < this.maxTotalEnemies; i++) {
+      this.telegraphMesh.setMatrixAt(i, this.dummy.matrix)
+      this.telegraphBeamMesh.setMatrixAt(i, this.dummy.matrix)
+    }
+    this.telegraphMesh.instanceMatrix.needsUpdate = true
+    this.telegraphBeamMesh.instanceMatrix.needsUpdate = true
   }
 
   public damageEnemy(id: number, damage = 1): { killed: boolean; x: number; z: number; type: CryptoType } | null {

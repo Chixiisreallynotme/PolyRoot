@@ -30,6 +30,7 @@ export class HeatingSystem {
   public pucesHeatedCount = 0
   public isPlayerInsideAny = false
   public currentActivePuce: Puce | null = null
+  public heatingSpeedMultiplier = 1.0
 
   constructor(scene: THREE.Scene) {
     const shuffled = [...ALL_PUCE_SPOTS].sort(() => Math.random() - 0.5)
@@ -61,7 +62,7 @@ export class HeatingSystem {
         this.currentActivePuce = puce
       }
 
-      const justFinished = puce.update(dt, isInside)
+      const justFinished = puce.update(dt, isInside, this.heatingSpeedMultiplier)
       if (justFinished) {
         this.pucesHeatedCount++
         heatedTriggered = true

@@ -90,7 +90,7 @@ export class Motherboard {
 
   /**
    * Builds the authentic PlayStation 1 gray molded ABS plastic chassis interior floor,
-   * structural rib grid, sidewalls, and ventilation louvers.
+   * structural rib grid, sidewalls, ventilation louvers, and screw wells.
    */
   private buildConsoleChassis(width: number, depth: number): void {
     const chassisWidth = 96
@@ -108,14 +108,21 @@ export class Motherboard {
     chassisFloor.receiveShadow = true
     this.group.add(chassisFloor)
 
-    // Molded ABS plastic material for 3D ribs & louvers (#7a8699 / #8d99ae)
+    // Molded ABS plastic material for 3D ribs & louvers (#6c7582 / #7b8595)
     const plasticMat = new THREE.MeshLambertMaterial({
-      color: 0x7a8699,
+      color: 0x768090,
       flatShading: true,
     })
     const darkPlasticMat = new THREE.MeshLambertMaterial({
-      color: 0x4a5568,
+      color: 0x343a46,
       flatShading: true,
+    })
+    const screwMat = new THREE.MeshLambertMaterial({
+      color: 0x94a3b8,
+      flatShading: true,
+    })
+    const screwSlotMat = new THREE.MeshBasicMaterial({
+      color: 0x1e293b,
     })
 
     // Outer Chassis Tub Sidewalls
@@ -138,7 +145,7 @@ export class Motherboard {
     this.group.add(wallS)
     this.addBoxCollider(width / 2, depth / 2 + chassisDepth / 2 - wallThick / 2, chassisWidth, wallThick, wallHeight - 0.72, 'Wall_South')
 
-    // West outer wall (with ventilation louvers cutout feeling)
+    // West outer wall (with ventilation louvers)
     const wallW = new THREE.Mesh(new THREE.BoxGeometry(wallThick, wallHeight, chassisDepth), plasticMat)
     wallW.position.set(width / 2 - chassisWidth / 2 + wallThick / 2, -0.72 + wallHeight / 2, depth / 2)
     wallW.castShadow = true
@@ -197,6 +204,48 @@ export class Motherboard {
       louverR.rotation.x = 0.4
       louverR.castShadow = true
       this.group.add(louverR)
+    }
+
+    // 3D Molded Plastic Screw Wells in Chassis Tub (outside PCB perimeter)
+    const screwWellPositions = [
+      { x: -14, z: 8 },
+      { x: -14, z: 28 },
+      { x: width + 14, z: 8 },
+      { x: width + 14, z: 28 },
+      { x: width / 2, z: depth + 12 },
+      { x: width / 2, z: -12 },
+    ]
+
+    for (const sw of screwWellPositions) {
+      const wellGroup = new THREE.Group()
+      wellGroup.position.set(sw.x, -0.72, sw.z)
+
+      // Outer cylindrical boss collar
+      const boss = new THREE.Mesh(new THREE.CylinderGeometry(1.2, 1.35, 0.5, 16), plasticMat)
+      boss.position.y = 0.25
+      boss.castShadow = true
+      boss.receiveShadow = true
+      wellGroup.add(boss)
+
+      // Inner recessed well hole
+      const innerWell = new THREE.Mesh(new THREE.CylinderGeometry(0.75, 0.75, 0.52, 16), darkPlasticMat)
+      innerWell.position.y = 0.26
+      wellGroup.add(innerWell)
+
+      // Silver screw inside well
+      const screw = new THREE.Mesh(new THREE.CylinderGeometry(0.42, 0.42, 0.08, 12), screwMat)
+      screw.position.y = 0.29
+      wellGroup.add(screw)
+
+      // Cross slots
+      const c1 = new THREE.Mesh(new THREE.BoxGeometry(0.5, 0.02, 0.1), screwSlotMat)
+      c1.position.y = 0.34
+      const c2 = new THREE.Mesh(new THREE.BoxGeometry(0.1, 0.02, 0.5), screwSlotMat)
+      c2.position.y = 0.34
+      wellGroup.add(c1, c2)
+
+      this.group.add(wellGroup)
+      this.addCylinderCollider(sw.x, sw.z, 1.35, 0.5 - 0.72, 'Chassis_Screw_Well')
     }
   }
 
@@ -331,17 +380,30 @@ export class Motherboard {
 
   /**
    * Vibrant PlayStation 1 PU-8 PCB Green Substrate (48m x 36m)
+   * High-resolution FR-4 solder mask with gold grounding pour and circuit bus tracks
    */
   private buildPcbSubstrate(width: number, depth: number): void {
     const pcbGeo = new THREE.BoxGeometry(width, 0.7, depth)
     const pcbMat = new THREE.MeshLambertMaterial({
-      color: 0x1d5c38,
+      color: 0x124f2b,
       flatShading: true,
     })
     const pcb = new THREE.Mesh(pcbGeo, pcbMat)
     pcb.position.set(width / 2, -0.35, depth / 2)
     pcb.receiveShadow = true
     this.group.add(pcb)
+
+    // Top High-Resolution Textured PCB Plate
+    const topPlateGeo = new THREE.PlaneGeometry(width, depth)
+    topPlateGeo.rotateX(-Math.PI / 2)
+    const pcbTopMat = new THREE.MeshLambertMaterial({
+      map: MotherboardTextureGenerator.createPcbTexture(),
+      color: 0xffffff,
+    })
+    const pcbTop = new THREE.Mesh(topPlateGeo, pcbTopMat)
+    pcbTop.position.set(width / 2, 0.002, depth / 2)
+    pcbTop.receiveShadow = true
+    this.group.add(pcbTop)
 
     // Gold Grounding Perimeter Edge Trace & Corner Solder Pads
     const goldMat = new THREE.MeshLambertMaterial({ color: 0xd4af37, flatShading: true })
@@ -487,44 +549,166 @@ export class Motherboard {
   }
 
   private buildGpuAndVram(x: number, z: number): void {
-    const gpuMat = new THREE.MeshLambertMaterial({ color: 0x1f242d, flatShading: true })
-    const spreaderMat = new THREE.MeshLambertMaterial({ color: 0x8899aa, flatShading: true })
+    const gpuMat = new THREE.MeshLambertMaterial({ color: 0x16181f, flatShading: true })
+    const pinMat = new THREE.MeshLambertMaterial({ color: 0xdce4ec, flatShading: true })
+    const heatsinkMat = new THREE.MeshLambertMaterial({ color: 0x14161b, flatShading: true })
+    const finEdgeMat = new THREE.MeshLambertMaterial({ color: 0x2e333d, flatShading: true })
+    const clipMat = new THREE.MeshLambertMaterial({ color: 0xd8e0e8, flatShading: true })
     const vramMat = new THREE.MeshLambertMaterial({ color: 0x181c24, flatShading: true })
     const vramTex = MotherboardTextureGenerator.createRamTexture()
     const vramFaceMat = new THREE.MeshLambertMaterial({ map: vramTex, color: 0xffffff })
 
-    const gpu = new THREE.Mesh(new THREE.BoxGeometry(5.8, 0.5, 5.8), gpuMat)
-    gpu.position.set(x, 0.25, z)
-    gpu.castShadow = true
-    this.group.add(gpu)
+    const gpuGroup = new THREE.Group()
+    gpuGroup.position.set(x, 0, z)
 
+    // 1. Authentic CXD8514Q SOLI GPU QFP Package Body (5.8m x 0.45m x 5.8m)
+    const gpuBody = new THREE.Mesh(new THREE.BoxGeometry(5.8, 0.45, 5.8), gpuMat)
+    gpuBody.position.y = 0.225
+    gpuBody.castShadow = true
+    gpuBody.receiveShadow = true
+    gpuGroup.add(gpuBody)
+
+    // Top face silkscreen plate with high-resolution GPU markings
     const gpuTex = MotherboardTextureGenerator.createGpuTexture()
     const gpuFaceMat = new THREE.MeshLambertMaterial({ map: gpuTex, color: 0xffffff })
-    const gpuPlate = new THREE.Mesh(new THREE.PlaneGeometry(5.4, 5.4), gpuFaceMat)
+    const gpuPlate = new THREE.Mesh(new THREE.PlaneGeometry(5.5, 5.5), gpuFaceMat)
     gpuPlate.rotateX(-Math.PI / 2)
-    gpuPlate.position.set(x, 0.51, z)
-    this.group.add(gpuPlate)
+    gpuPlate.position.y = 0.455
+    gpuGroup.add(gpuPlate)
 
-    const spreader = new THREE.Mesh(new THREE.BoxGeometry(4.2, 0.3, 4.2), spreaderMat)
-    spreader.position.set(x, 0.65, z)
-    spreader.castShadow = true
-    this.group.add(spreader)
-    this.addBoxCollider(x, z, 6.0, 6.0, 0.95, 'GPU_CXD8514Q')
+    // 2. Authentic 160 Silver Gull-Wing Lead Pins (40 pins per side)
+    const pinCountPerSide = 40
+    const span = 5.2
+    const pinStep = span / (pinCountPerSide - 1)
+    const startOffset = -span / 2
 
-    // 2x VRAM Chips
+    // Pins on North & South edges (80 pins)
+    for (let i = 0; i < pinCountPerSide; i++) {
+      const p = startOffset + i * pinStep
+      // North Pin
+      const pinN = new THREE.Mesh(new THREE.BoxGeometry(0.07, 0.12, 0.35), pinMat)
+      pinN.position.set(p, 0.12, -3.02)
+      gpuGroup.add(pinN)
+
+      // South Pin
+      const pinS = new THREE.Mesh(new THREE.BoxGeometry(0.07, 0.12, 0.35), pinMat)
+      pinS.position.set(p, 0.12, 3.02)
+      gpuGroup.add(pinS)
+    }
+
+    // Pins on West & East edges (80 pins -> 160 pins total)
+    for (let i = 0; i < pinCountPerSide; i++) {
+      const p = startOffset + i * pinStep
+      // West Pin
+      const pinW = new THREE.Mesh(new THREE.BoxGeometry(0.35, 0.12, 0.07), pinMat)
+      pinW.position.set(-3.02, 0.12, p)
+      gpuGroup.add(pinW)
+
+      // East Pin
+      const pinE = new THREE.Mesh(new THREE.BoxGeometry(0.35, 0.12, 0.07), pinMat)
+      pinE.position.set(3.02, 0.12, p)
+      gpuGroup.add(pinE)
+    }
+
+    // 3. Extruded Black Anodized Aluminum Heatsink Base Plate (4.2m x 0.16m x 4.2m)
+    const heatsinkBase = new THREE.Mesh(new THREE.BoxGeometry(4.2, 0.16, 4.2), heatsinkMat)
+    heatsinkBase.position.y = 0.54
+    heatsinkBase.castShadow = true
+    heatsinkBase.receiveShadow = true
+    gpuGroup.add(heatsinkBase)
+
+    // 4. Individual Extruded Cooling Fin Blades (8 parallel fin blades)
+    const finCount = 8
+    const finHeight = 0.72
+    const finThickness = 0.16
+    const finSpan = 3.6
+    const finStep = finSpan / (finCount - 1)
+    const finStart = -finSpan / 2
+
+    for (let i = 0; i < finCount; i++) {
+      const fz = finStart + i * finStep
+
+      // Main fin blade body
+      const fin = new THREE.Mesh(new THREE.BoxGeometry(4.2, finHeight, finThickness), heatsinkMat)
+      fin.position.set(0, 0.62 + finHeight / 2, fz)
+      fin.castShadow = true
+      fin.receiveShadow = true
+      gpuGroup.add(fin)
+
+      // Top chamfered edge highlight strip for sharp definition
+      const finTop = new THREE.Mesh(new THREE.BoxGeometry(4.2, 0.04, finThickness * 0.9), finEdgeMat)
+      finTop.position.set(0, 0.62 + finHeight + 0.02, fz)
+      gpuGroup.add(finTop)
+    }
+
+    // 5. Silver Metallic Thermal Tension Retention Clip
+    // (A) Cross clamping bar running perpendicular across the fins
+    const clipBar = new THREE.Mesh(new THREE.BoxGeometry(0.65, 0.12, 4.6), clipMat)
+    clipBar.position.set(0, 1.02, 0)
+    clipBar.castShadow = true
+    gpuGroup.add(clipBar)
+
+    // (B) Central Tension Dimple / Pressure Screw Boss
+    const clipDimple = new THREE.Mesh(new THREE.CylinderGeometry(0.28, 0.28, 0.16, 12), clipMat)
+    clipDimple.position.set(0, 1.12, 0)
+    clipDimple.castShadow = true
+    gpuGroup.add(clipDimple)
+
+    const dimpleNotch = new THREE.Mesh(new THREE.BoxGeometry(0.35, 0.04, 0.08), heatsinkMat)
+    dimpleNotch.position.set(0, 1.21, 0)
+    gpuGroup.add(dimpleNotch)
+
+    // (C) Downward retention hooks clamping onto heatsink base on North & South ends
+    const latchN = new THREE.Mesh(new THREE.BoxGeometry(0.65, 0.62, 0.14), clipMat)
+    latchN.position.set(0, 0.72, -2.32)
+    latchN.castShadow = true
+
+    const tabN = new THREE.Mesh(new THREE.BoxGeometry(0.65, 0.1, 0.28), clipMat)
+    tabN.position.set(0, 0.44, -2.42)
+
+    const latchS = new THREE.Mesh(new THREE.BoxGeometry(0.65, 0.62, 0.14), clipMat)
+    latchS.position.set(0, 0.72, 2.32)
+    latchS.castShadow = true
+
+    const tabS = new THREE.Mesh(new THREE.BoxGeometry(0.65, 0.1, 0.28), clipMat)
+    tabS.position.set(0, 0.44, 2.42)
+
+    gpuGroup.add(latchN, tabN, latchS, tabS)
+
+    this.group.add(gpuGroup)
+    this.addBoxCollider(x, z, 6.0, 6.0, 1.45, 'GPU_CXD8514Q')
+
+    // 6. 2x SEC TSOP VRAM Chips (KM4216V256G)
     const vramOffsets = [{ dz: -1.8 }, { dz: 2.2 }]
     for (let i = 0; i < vramOffsets.length; i++) {
       const v = vramOffsets[i]!
+      const vramGroup = new THREE.Group()
+      vramGroup.position.set(x - 5.5, 0, z + v.dz)
+
       const vram = new THREE.Mesh(new THREE.BoxGeometry(4.2, 0.35, 2.6), vramMat)
-      vram.position.set(x - 5.5, 0.175, z + v.dz)
+      vram.position.y = 0.175
       vram.castShadow = true
-      this.group.add(vram)
+      vramGroup.add(vram)
 
       const vPlate = new THREE.Mesh(new THREE.PlaneGeometry(4.0, 2.4), vramFaceMat)
       vPlate.rotateX(-Math.PI / 2)
       vPlate.position.set(x - 5.5, 0.36, z + v.dz)
-      this.group.add(vPlate)
+      vramGroup.add(vPlate)
 
+      // TSOP Lead Pins along North and South edges
+      const tsopPinCount = 14
+      const tsopSpan = 3.6
+      const tsopStep = tsopSpan / (tsopPinCount - 1)
+      for (let j = 0; j < tsopPinCount; j++) {
+        const tx = -tsopSpan / 2 + j * tsopStep
+        const pN = new THREE.Mesh(new THREE.BoxGeometry(0.08, 0.1, 0.22), pinMat)
+        pN.position.set(tx, 0.1, -1.38)
+        const pS = new THREE.Mesh(new THREE.BoxGeometry(0.08, 0.1, 0.22), pinMat)
+        pS.position.set(tx, 0.1, 1.38)
+        vramGroup.add(pN, pS)
+      }
+
+      this.group.add(vramGroup)
       this.addBoxCollider(x - 5.5, z + v.dz, 4.2, 2.6, 0.5, `VRAM_${i + 1}`)
     }
   }
@@ -979,6 +1163,10 @@ export class Motherboard {
       { x: 10, z: 28, w: 0.3, d: 6.0 },
       { x: 36, z: 16, w: 0.3, d: 6.0 }, // BIOS to CPU bus
       { x: 17, z: 10, w: 0.3, d: 4.0 }, // SPU to DAC bus
+      { x: 32, z: 20, w: 5.0, d: 0.3 }, // GPU to CPU bus
+      { x: 25, z: 18, w: 3.5, d: 0.3 }, // GPU to VRAM1 bus
+      { x: 25, z: 20, w: 3.5, d: 0.3 }, // GPU to VRAM2 bus
+      { x: 29.5, z: 22.5, w: 0.3, d: 4.0 }, // GPU to X101 clock trace
     ]
 
     for (const t of traces) {

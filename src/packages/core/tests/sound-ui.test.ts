@@ -107,3 +107,74 @@ describe('PS1 Stepped Bresenham Bevels & ChoiceUI Cards', () => {
     expect(c3.iconSvg).toBe(PixelArt.cyberMobility)
   })
 })
+
+describe('HUD 16-Segment Pixel-Stepped Heating Bar & Color Tiers', () => {
+  it('computes exact discrete color brackets for all 16 segments', async () => {
+    const { getHeatingSegmentColor } = await import('../../../ui/HUD')
+    // 0-40%: Green (#00ff88) (segments 0..5)
+    for (let i = 0; i <= 5; i++) {
+      const res = getHeatingSegmentColor(i)
+      expect(res.color).toBe('#00ff88')
+      expect(res.isBlinking).toBe(false)
+    }
+
+    // 40-70%: Yellow (#facc15) (segments 6..10)
+    for (let i = 6; i <= 10; i++) {
+      const res = getHeatingSegmentColor(i)
+      expect(res.color).toBe('#facc15')
+      expect(res.isBlinking).toBe(false)
+    }
+
+    // 70-90%: Orange (#f97316) (segments 11..13)
+    for (let i = 11; i <= 13; i++) {
+      const res = getHeatingSegmentColor(i)
+      expect(res.color).toBe('#f97316')
+      expect(res.isBlinking).toBe(false)
+    }
+
+    // 90-100%: Blinking Flashing Crimson Red (#ef4444) (segments 14..15)
+    for (let i = 14; i <= 15; i++) {
+      const res = getHeatingSegmentColor(i)
+      expect(res.color).toBe('#ef4444')
+      expect(res.isBlinking).toBe(true)
+    }
+  })
+})
+
+describe('ChoiceUI Overclock Refusal & Skip Hard-Mode Challenge', () => {
+  it('renders modal with updated instructions text and 4th skip option button', async () => {
+    const { ChoiceUI } = await import('../../../ui/ChoiceUI')
+    const ui = new ChoiceUI()
+    let chosen: any = 'not-called'
+
+    ui.show((choice) => {
+      chosen = choice
+    })
+
+    const el = document.getElementById('choice-ui')
+    expect(el).toBeDefined()
+    expect(el?.textContent).toContain('[1], [2], [3] OU [4] PASSER')
+    expect(el?.textContent).toContain("[4] PASSER L'OVERCLOCK (CHALLENGE ROOT +15% VITESSE CHAUFFE)")
+    expect(el?.textContent).toContain('[4] OU [ECHAP]')
+
+    // Clicking skip button passes null
+    const skipBtn = document.getElementById('choice-skip-button')
+    expect(skipBtn).toBeDefined()
+    skipBtn?.click()
+    expect(chosen).toBeNull()
+  })
+
+  it('triggers skip via keyboard [4] or [Escape]', async () => {
+    const { ChoiceUI } = await import('../../../ui/ChoiceUI')
+    const ui = new ChoiceUI()
+    let chosen: any = 'not-called'
+
+    ui.show((choice) => {
+      chosen = choice
+    })
+
+    window.dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape' }))
+    expect(chosen).toBeNull()
+  })
+})
+

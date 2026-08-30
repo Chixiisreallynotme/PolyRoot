@@ -23,6 +23,8 @@ export interface CryptoInstance {
   rotationY: number
   y?: number
   floorY?: number
+  spawnTelegraphTimer?: number
+  isSpawning?: boolean
 }
 
 export interface CryptoDef {

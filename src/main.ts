@@ -178,9 +178,12 @@ class Game {
     // 1. Calculate Component Standing Platform Floor Height
     const floorY = this.motherboard.getSupportHeight(pPos.x, pPos.z, 0.45)
 
-    // 2. Update Player Movement, Jump & Auto-Aim
+    // 2. Update Player Movement, Jump & Auto-Aim (include Boss as valid plasma target)
     const speedScale = this.heatingSystem.isPlayerInsideAny ? 0.70 : 1.0
-    this.player.update(dt, speedScale, this.spawnSystem.instances, floorY)
+    const targetEnemies = this.boss.active
+      ? [...this.spawnSystem.instances, { x: this.boss.group.position.x, z: this.boss.group.position.z, active: true, id: -999, radius: 1.4 }]
+      : this.spawnSystem.instances
+    this.player.update(dt, speedScale, targetEnemies, floorY)
 
     // 3. Physical Motherboard Component Collisions (Solid IC chips & capacitors)
     const col = this.motherboard.checkCollision(pPos.x, pPos.z, 0.55, this.player.root.group.position.y)
@@ -217,14 +220,37 @@ class Game {
     })
 
     // 6. Update Enemies & Projectiles (with physical Motherboard obstacle collisions)
-    this.spawnSystem.update(dt, pPos.x, pPos.z, this.heatingSystem.pucesHeatedCount, this.motherboard)
+    this.spawnSystem.update(
+      dt,
+      pPos.x,
+      pPos.z,
+      this.heatingSystem.pucesHeatedCount,
+      this.motherboard,
+      this.player.stats.auraRadius
+    )
 
-    // 7. Player Bullets vs Enemies Collisions
+    // 7. Player Bullets vs Enemies & Boss Collisions
     for (const bullet of this.player.bullets) {
       if (!bullet.active) continue
 
       const bX = bullet.mesh.position.x
       const bZ = bullet.mesh.position.z
+
+      // Boss Bullet Hit Check
+      if (this.boss.active) {
+        const bdx = bX - this.boss.group.position.x
+        const bdz = bZ - this.boss.group.position.z
+        if (Math.sqrt(bdx * bdx + bdz * bdz) <= 1.4) {
+          bullet.active = false
+          bullet.mesh.visible = false
+          this.particleSystem.burst({ x: bX, y: 1.5, z: bZ }, 8, 0.0, 1.0, 1.0)
+          const killed = this.boss.takeDamage(this.player.stats.shootDamage)
+          if (killed) {
+            this.particleSystem.burst({ x: this.boss.group.position.x, y: 1.5, z: this.boss.group.position.z }, 32, 1.0, 0.8, 0.0)
+          }
+          continue
+        }
+      }
 
       for (const inst of this.spawnSystem.instances) {
         if (!inst.active) continue
@@ -256,9 +282,15 @@ class Game {
 
     // 9. Update Boss Tactical CyberLeek
     if (this.boss.active) {
-      const { won, shockwaveActive } = this.boss.update(dt, pPos.x, pPos.z, () => {
-        // Boss summons
-      })
+      const { won, shockwaveActive } = this.boss.update(
+        dt,
+        pPos.x,
+        pPos.z,
+        () => {
+          this.spawnSystem.spawnHordeBatch(pPos.x, pPos.z, 4)
+        },
+        this.player.root.group.position.y
+      )
 
       if (shockwaveActive) {
         if (this.player.takeDamage(1)) {
@@ -300,7 +332,10 @@ class Game {
       insidePuce,
       this.boss.active,
       this.boss.timer,
-      this.boss.maxTime
+      this.boss.maxTime,
+      this.boss.hp,
+      this.boss.maxHp,
+      this.boss.phase
     )
   }
 
@@ -335,8 +370,8 @@ class Game {
       const distSq = dx * dx + dz * dz
       const minDist = inst.radius + 0.55
 
-      // Body Contact Damage (only if not jumping high above enemy)
-      if (distSq <= minDist * minDist && this.player.root.group.position.y < 1.2) {
+      // Body Contact Damage (only if enemy is not spawning and not jumping high above enemy)
+      if (!inst.isSpawning && distSq <= minDist * minDist && this.player.root.group.position.y < 1.2) {
         if (this.player.takeDamage(1)) {
           this.particleSystem.burst({ x: pX, y: 0.6, z: pZ }, 12, 1.0, 0.2, 0.2)
           this.ps1Pass.triggerDamageGlitch()
@@ -375,6 +410,12 @@ class Game {
 
   private triggerOverclockChoice(): void {
     this.choiceUI.show((choice) => {
+      if (!choice) {
+        // [4] Refusal / Skip Overclock: +15% heating speed bonus for hard-mode score runners
+        this.heatingSystem.heatingSpeedMultiplier += 0.15
+        console.log(`[Overclock Refusal] Skip challenge activated! Heating speed multiplier is now ${this.heatingSystem.heatingSpeedMultiplier.toFixed(2)}x`)
+        return
+      }
       if (choice.build === 'A') {
         this.player.stats.auraRadius *= 1.35
         this.player.stats.auraPower *= 1.4
@@ -390,13 +431,28 @@ class Game {
 
   private handleVictory(): void {
     this.isVictory = true
-    const result = RankSystem.evaluate(this.progressionSystem.totalTimeSeconds, this.progressionSystem.kills)
+    const result = RankSystem.evaluate({
+      rawTimeSeconds: this.progressionSystem.totalTimeSeconds,
+      kills: this.progressionSystem.kills,
+      bossDefeated: true,
+      bossReached: true,
+      diedDuringBoss: false,
+      phase3Reached: true,
+    })
     this.victoryScreen.showVictory(result, () => window.location.reload())
   }
 
   private handleGameOver(): void {
     this.isGameOver = true
-    const result = RankSystem.evaluate(this.progressionSystem.totalTimeSeconds, this.progressionSystem.kills)
+    const bossReached = this.boss.active || this.heatingSystem.isAllHeated()
+    const result = RankSystem.evaluate({
+      rawTimeSeconds: this.progressionSystem.totalTimeSeconds,
+      kills: this.progressionSystem.kills,
+      bossDefeated: false,
+      bossReached,
+      diedDuringBoss: this.boss.active,
+      phase3Reached: this.boss.phase === 2,
+    })
     this.victoryScreen.showGameOver(result, this.heatingSystem.pucesHeatedCount, () => window.location.reload())
   }
 }
