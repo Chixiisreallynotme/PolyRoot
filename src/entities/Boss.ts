@@ -1,20 +1,21 @@
 import * as THREE from 'three'
-import { CyberLeekRig, type CyberLeekNodes } from '../render/CyberLeekRig'
+import { CyberLeekRig } from '../render/CyberLeekRig'
 
 /**
- * Boss CyberLeek — 100% faithful to character artwork & 3-phase epic encounter:
+ * Boss CyberLeek — 2-Phase Hardcore Encounter:
  * 
- * - Front-facing character model with pale stalk, signature :3 smirk, angular sunglasses with cyan highlights,
- *   3 curved leaves with cyan outline, cobalt blue tactical jumpsuit, dark navy harness with glowing cyan piping,
- *   articulated gauntlets with cyan energy cuffs and pulsating fists, and articulated combat boots.
+ * - Phase 1 (100% -> 50% HP / 150 -> 75 HP):
+ *   - Heavy Tactical March (7.5 m/s) + Ground Pound Leap Shockwaves (cyan expanding ground rings requiring Espace jump).
+ *   - LANCE DE POIREAUX : CyberLeek launches 3 high-speed spinning cyber leeks with cyan trails fan-targeting Root!
  * 
- * - Phase 1 (100% -> 60% HP): Tactical Heavy March + Ground Pound Shockwaves (damages if player doesn't jump over the expanding neon ring) + Fan Discs.
- * - Phase 2 (60% -> 25% HP): Overclock Rage (50% faster, 360 spin attack firing 4 ricocheting laser energy discs that bounce off walls).
- * - Phase 3 (25% -> 0% HP): Quantum Teleport Dash (teleports in digital glitches, charges with twin supersonic cyan energy fists, ricochet storms).
+ * - Phase 2 (50% -> 0% HP / 75 -> 0 HP) : OVERCLOCK MATRIX RAGE:
+ *   - Speed boost to 10.5 m/s with pulsating red/cyan neon glitch.
+ *   - Tempête de Poireaux & 6 Ricocheting Laser Discs bouncing off PCB walls and components.
+ *   - Quantum Teleport Dash: Vanishes into digital matrix static and charges with twin energy gauntlets.
  */
 
 export interface BossAttack {
-  type: 'disc' | 'slam' | 'ricochet'
+  type: 'disc' | 'slam' | 'ricochet' | 'poireau'
   x: number
   z: number
   vx: number
@@ -24,12 +25,13 @@ export interface BossAttack {
   life: number
   bounces: number
   maxBounces: number
+  rotationY?: number
 }
 
 export type BossActionState =
   | 'none'
   | 'leap_slam'
-  | 'fan_discs'
+  | 'throw_leeks'
   | 'spin_ricochet'
   | 'teleport_charge'
   | 'teleport_vanish'
@@ -41,23 +43,24 @@ export class Boss {
   public readonly rig: CyberLeekRig
   public active = false
   public timer = 0
-  public maxTime = 45
+  public maxTime = 55
 
-  // Health & 3-Phase State
-  public hp = 100
-  public maxHp = 100
-  public phase: 1 | 2 | 3 = 1
+  // Health & 2-Phase Hardcore State
+  public hp = 150
+  public maxHp = 150
+  public phase: 1 | 2 = 1
 
-  // Arena Boundaries for Ricocheting Laser Discs
+  // Arena Boundaries for Ricocheting Projectiles
   public arenaMinX = 2.0
   public arenaMaxX = 46.0
   public arenaMinZ = 2.0
   public arenaMaxZ = 34.0
 
   public attacks: BossAttack[] = []
-  private attackMesh: THREE.InstancedMesh
+  private discMesh: THREE.InstancedMesh
+  private leekMesh: THREE.InstancedMesh
   private dummy = new THREE.Object3D()
-  private maxAttacks = 80
+  private maxAttacks = 100
   private attackTimer = 0
 
   // Shockwave Neon Expanding Ring
@@ -77,12 +80,12 @@ export class Boss {
     this.group = new THREE.Group()
     this.group.position.set(24, 0, 18)
 
-    // Build Character Nodes & Hierarchy via CyberLeekRig master builder
+    // Build Character Nodes & Hierarchy via CyberLeekRig
     const { group: modelGroup, nodes } = CyberLeekRig.createModel()
     this.group.add(modelGroup)
     this.rig = new CyberLeekRig(nodes)
 
-    // Neon Cyan Expanding Shockwave Ring (Ground level y = 0.05)
+    // Neon Cyan Expanding Shockwave Ring
     const empGeo = new THREE.RingGeometry(0.35, 1.25, 36)
     empGeo.rotateX(-Math.PI / 2)
     const empMat = new THREE.MeshBasicMaterial({
@@ -96,93 +99,74 @@ export class Boss {
     this.empWaveMesh.position.y = 0.05
     this.group.add(this.empWaveMesh)
 
-    // Instanced Projectiles for Spinning / Ricocheting Laser Energy Discs
+    // 1. Instanced Projectiles for Ricocheting Laser Discs
     const discGeo = new THREE.CylinderGeometry(0.48, 0.48, 0.10, 16)
-    const discMat = new THREE.MeshLambertMaterial({
+    discGeo.rotateX(Math.PI / 2)
+    const discMat = new THREE.MeshBasicMaterial({
       color: 0x00ffff,
-      emissive: 0x0284c7,
+      wireframe: false,
+    })
+    this.discMesh = new THREE.InstancedMesh(discGeo, discMat, this.maxAttacks)
+    this.discMesh.instanceMatrix.setUsage(THREE.DynamicDrawUsage)
+    scene.add(this.discMesh)
+
+    // 2. Instanced Projectiles for Cyber Poireaux (White stalk + bright green top)
+    const leekGeo = new THREE.CylinderGeometry(0.12, 0.16, 0.85, 8)
+    const leekMat = new THREE.MeshLambertMaterial({
+      color: 0x48bb78,
       flatShading: true,
     })
-    this.attackMesh = new THREE.InstancedMesh(discGeo, discMat, this.maxAttacks)
-    this.attackMesh.castShadow = true
-    scene.add(this.attackMesh)
+    this.leekMesh = new THREE.InstancedMesh(leekGeo, leekMat, this.maxAttacks)
+    this.leekMesh.instanceMatrix.setUsage(THREE.DynamicDrawUsage)
+    scene.add(this.leekMesh)
 
+    // Hide all instances initially
     for (let i = 0; i < this.maxAttacks; i++) {
-      this.attacks.push({
-        type: 'disc',
-        x: 0,
-        z: 0,
-        vx: 0,
-        vz: 0,
-        radius: 0.48,
-        active: false,
-        life: 0,
-        bounces: 0,
-        maxBounces: 0,
-      })
+      this.dummy.position.set(0, -999, 0)
+      this.dummy.updateMatrix()
+      this.discMesh.setMatrixAt(i, this.dummy.matrix)
+      this.leekMesh.setMatrixAt(i, this.dummy.matrix)
     }
+    this.discMesh.instanceMatrix.needsUpdate = true
+    this.leekMesh.instanceMatrix.needsUpdate = true
 
-    this.group.visible = false
     scene.add(this.group)
+    this.group.visible = false
   }
 
-  public buildCyberLeekHierarchy(): CyberLeekNodes {
-    return CyberLeekRig.createModel().nodes
-  }
-
-  spawn(startX = 24, startZ = 18): void {
+  spawn(): void {
     this.active = true
-    this.timer = 0
     this.hp = this.maxHp
     this.phase = 1
+    this.timer = 0
     this.actionState = 'none'
     this.stateTimer = 0
-    this.attackTimer = 0
-    this.group.position.set(startX, 0, startZ)
+    this.attacks = []
     this.group.visible = true
-    this.rig.resetToIdle()
-    console.log('[boss] Tactical CyberLeek Spawned — Phase 1: Heavy Tactical March & Ground Pounds!')
+    this.group.position.set(24, 0, 18)
+    this.rig.setPhaseTint(1)
   }
 
   takeDamage(amount: number): boolean {
-    if (!this.active) return false
-
+    if (!this.active || this.hp <= 0) return false
     this.hp = Math.max(0, this.hp - amount)
-    this.rig.triggerImpactSquash(0.35)
 
-    // Phase 1 -> Phase 2 Overclock Transition (60% HP)
-    if (this.hp <= 60 && this.phase === 1) {
+    // Phase 2 Trigger at 50% HP (75 HP)
+    if (this.hp <= this.maxHp * 0.5 && this.phase === 1) {
       this.phase = 2
-      this.rig.triggerImpactSquash(0.65)
-      this.triggerSlamShockwave()
-      this.fireRicochetDiscs(4)
-      console.log('[boss] CyberLeek Phase 2: Overclock Rage Activated (50% Speed + Ricocheting Discs)!')
+      this.rig.setPhaseTint(2)
+      this.actionState = 'none'
+      this.stateTimer = 0
     }
 
-    // Phase 2 -> Phase 3 Quantum Teleport Transition (25% HP)
-    if (this.hp <= 25 && this.phase < 3) {
-      this.phase = 3
-      this.rig.triggerImpactSquash(0.85)
-      this.triggerTeleportSequence(this.group.position.x, this.group.position.z)
-      console.log('[boss] CyberLeek Phase 3: Quantum Teleport Dash Activated (Supersonic Fists + Matrix Glitches)!')
-    }
-
-    // Boss Defeated
-    if (this.hp <= 0) {
-      this.active = false
-      this.group.visible = false
-      console.log('[boss] Tactical CyberLeek Defeated!')
-      return true
-    }
-
-    return false
+    return this.hp <= 0
   }
 
   update(
     dt: number,
     playerX: number,
     playerZ: number,
-    onSummonHorde: () => void,
+    onHordeSpawn?: () => void,
     playerY = 0
   ): { won: boolean; shockwaveActive: boolean } {
     if (!this.active) return { won: false, shockwaveActive: false }
@@ -190,410 +174,326 @@ export class Boss {
     this.timer += dt
     this.attackTimer += dt
 
-    const dx = playerX - this.group.position.x
-    const dz = playerZ - this.group.position.z
-    const dist = Math.sqrt(dx * dx + dz * dz)
-
-    // Boss Speed scaling per phase (Phase 2 is 50% faster)
-    const baseSpeed = this.phase === 1 ? 3.0 : this.phase === 2 ? 4.8 : 5.4
-    const isMoving = dist > 4.5 && this.actionState === 'none'
-
-    // Update procedural rig animations
-    this.rig.update(dt, {
-      isMoving,
-      isSprinting: this.phase >= 2,
-      speed: baseSpeed,
-      phase: this.phase,
-    })
-
-    // Execute Active Boss Action State Machine
-    this.updateBossStateMachine(dt, playerX, playerZ, dist, baseSpeed, onSummonHorde)
-
-    // Update Expanding Ground Pound Shockwave
-    const shockwaveHit = this.updateShockwaveRing(dt, playerX, playerZ, playerY)
-
-    // Update Projectiles & Wall Ricochets
-    this.updateProjectiles(dt)
-
-    // Victory if HP depleted or timer reached maxTime
-    if (this.hp <= 0 || this.timer >= this.maxTime) {
-      this.active = false
-      this.group.visible = false
+    if (this.timer >= this.maxTime || this.hp <= 0) {
       return { won: true, shockwaveActive: false }
     }
 
-    return { won: false, shockwaveActive: shockwaveHit }
-  }
-
-  private updateBossStateMachine(
-    dt: number,
-    playerX: number,
-    playerZ: number,
-    dist: number,
-    speed: number,
-    onSummonHorde: () => void
-  ): void {
-    const dx = playerX - this.group.position.x
-    const dz = playerZ - this.group.position.z
-
-    // 1. FREE MOVEMENT & ATTACK SELECTION
-    if (this.actionState === 'none') {
-      // Rotate front face (+Z) towards player
-      if (dist > 0.1) {
-        this.group.rotation.y = Math.atan2(dx, dz)
-      }
-
-      // March / Sprint towards player
-      if (dist > 4.5) {
-        this.group.position.x += (dx / dist) * speed * dt
-        this.group.position.z += (dz / dist) * speed * dt
-      }
-
-      // Clamp Boss to Motherboard Arena
-      this.group.position.x = Math.max(this.arenaMinX + 1.0, Math.min(this.arenaMaxX - 1.0, this.group.position.x))
-      this.group.position.z = Math.max(this.arenaMinZ + 1.0, Math.min(this.arenaMaxZ - 1.0, this.group.position.z))
-
-      // Attack Trigger Intervals (Phase 1: 2.5s, Phase 2: 1.8s, Phase 3: 1.3s)
-      const attackCooldown = this.phase === 1 ? 2.5 : this.phase === 2 ? 1.8 : 1.3
-      if (this.attackTimer >= attackCooldown) {
-        this.attackTimer = 0
-        this.selectNextPhaseAttack(playerX, playerZ, onSummonHorde)
-      }
-      return
-    }
-
-    // 2. LEAP SLAM SEQUENCE (Phase 1 & Phase 2)
-    if (this.actionState === 'leap_slam') {
-      this.stateTimer += dt
-      // Interpolate leap trajectory towards target landing
-      this.group.position.x += (this.leapTarget.x - this.group.position.x) * dt * 4.2
-      this.group.position.z += (this.leapTarget.z - this.group.position.z) * dt * 4.2
-
-      if (this.stateTimer >= 1.1) {
-        this.actionState = 'none'
-        this.triggerSlamShockwave()
-        if (this.phase >= 2) {
-          this.fireRadialDiscs(6)
-        }
-      }
-    }
-
-    // 3. 360 SPIN RICOCHET DISCS (Phase 2 & Phase 3)
-    if (this.actionState === 'spin_ricochet') {
-      this.stateTimer += dt
-      if (this.stateTimer >= 0.85) {
-        this.actionState = 'none'
-      }
-    }
-
-    // 4. QUANTUM TELEPORT SEQUENCE (Phase 3)
-    if (this.actionState === 'teleport_charge') {
-      this.stateTimer += dt
-      if (this.stateTimer >= 0.35) {
-        // Vanish & Teleport to tactical flank
-        this.actionState = 'teleport_vanish'
-        this.stateTimer = 0
-        this.group.visible = false
-
-        // Calculate teleport destination (6-8m from player at random angle)
-        const teleportAngle = Math.random() * Math.PI * 2
-        const teleportDist = 7.5
-        let targetX = playerX + Math.cos(teleportAngle) * teleportDist
-        let targetZ = playerZ + Math.sin(teleportAngle) * teleportDist
-        targetX = Math.max(this.arenaMinX + 2.0, Math.min(this.arenaMaxX - 2.0, targetX))
-        targetZ = Math.max(this.arenaMinZ + 2.0, Math.min(this.arenaMaxZ - 2.0, targetZ))
-
-        this.group.position.set(targetX, 0, targetZ)
-      }
-    }
-
-    if (this.actionState === 'teleport_vanish') {
-      this.stateTimer += dt
-      if (this.stateTimer >= 0.15) {
-        // Reappear & Initiate Supersonic Quantum Dash
-        this.actionState = 'quantum_dash'
-        this.stateTimer = 0
-        this.group.visible = true
-        this.isQuantumDashing = true
-
-        const toPlayerX = playerX - this.group.position.x
-        const toPlayerZ = playerZ - this.group.position.z
-        const toPlayerDist = Math.max(0.1, Math.sqrt(toPlayerX * toPlayerX + toPlayerZ * toPlayerZ))
-
-        this.group.rotation.y = Math.atan2(toPlayerX, toPlayerZ)
-        this.dashVelocity.x = (toPlayerX / toPlayerDist) * 18.0
-        this.dashVelocity.z = (toPlayerZ / toPlayerDist) * 18.0
-
-        this.rig.triggerQuantumDash(0.48)
-      }
-    }
-
-    if (this.actionState === 'quantum_dash') {
-      this.stateTimer += dt
-      this.group.position.x += this.dashVelocity.x * dt
-      this.group.position.z += this.dashVelocity.z * dt
-
-      // Wall bounce check during quantum dash
-      if (this.group.position.x < this.arenaMinX || this.group.position.x > this.arenaMaxX) {
-        this.dashVelocity.x = -this.dashVelocity.x
-      }
-      if (this.group.position.z < this.arenaMinZ || this.group.position.z > this.arenaMaxZ) {
-        this.dashVelocity.z = -this.dashVelocity.z
-      }
-
-      if (this.stateTimer >= 0.48) {
-        this.actionState = 'dash_recovery'
-        this.stateTimer = 0
-        this.isQuantumDashing = false
-        this.rig.triggerImpactSquash(0.4)
-        this.fireRicochetDiscs(2)
-      }
-    }
-
-    if (this.actionState === 'dash_recovery') {
-      this.stateTimer += dt
-      if (this.stateTimer >= 0.20) {
-        this.actionState = 'none'
-      }
-    }
-  }
-
-  private selectNextPhaseAttack(playerX: number, playerZ: number, onSummonHorde: () => void): void {
-    const roll = Math.random()
-
-    // PHASE 1: Tactical Heavy March + Ground Pound Shockwaves + Fan Discs
-    if (this.phase === 1) {
-      if (roll < 0.50) {
-        this.actionState = 'leap_slam'
-        this.stateTimer = 0
-        this.leapTarget.x = playerX
-        this.leapTarget.z = playerZ
-        this.rig.triggerLeapSlam(1.1)
-      } else {
-        this.rig.triggerDiscThrow(0.6, () => {
-          this.fireFanDiscs(playerX, playerZ, 4)
-        })
-      }
-      return
-    }
-
-    // PHASE 2: Overclock Rage (50% Faster + Ricocheting Discs + Swarms)
-    if (this.phase === 2) {
-      if (roll < 0.45) {
-        this.actionState = 'spin_ricochet'
-        this.stateTimer = 0
-        this.rig.triggerSpinAttack(0.8, () => {
-          this.fireRicochetDiscs(4)
-        })
-      } else if (roll < 0.80) {
-        this.actionState = 'leap_slam'
-        this.stateTimer = 0
-        this.leapTarget.x = playerX
-        this.leapTarget.z = playerZ
-        this.rig.triggerLeapSlam(0.9)
-      } else {
-        this.rig.triggerDiscThrow(0.5, () => {
-          this.fireFanDiscs(playerX, playerZ, 5)
-          onSummonHorde()
-        })
-      }
-      return
-    }
-
-    // PHASE 3: Quantum Teleport Dash + Twin Energy Fists + Ricochet Storm
-    if (this.phase === 3) {
-      if (roll < 0.55) {
-        this.triggerTeleportSequence(playerX, playerZ)
-      } else if (roll < 0.85) {
-        this.actionState = 'spin_ricochet'
-        this.stateTimer = 0
-        this.rig.triggerSpinAttack(0.7, () => {
-          this.fireRicochetDiscs(8)
-        })
-      } else {
-        this.actionState = 'leap_slam'
-        this.stateTimer = 0
-        this.leapTarget.x = playerX
-        this.leapTarget.z = playerZ
-        this.rig.triggerLeapSlam(0.75)
-      }
-    }
-  }
-
-  private triggerTeleportSequence(playerX: number, playerZ: number): void {
-    this.actionState = 'teleport_charge'
-    this.stateTimer = 0
-    this.rig.triggerTeleportCharge(0.35)
-  }
-
-  /**
-   * Ground Pound Shockwave:
-   * Expands outward across the arena floor.
-   * Only damages player if player is touching the ring AND hasn't jumped over (playerY < 0.65).
-   */
-  private triggerSlamShockwave(): void {
-    this.empWaveScale = 0.1
-    this.empWaveActive = true
-    this.empWaveMesh.scale.set(this.empWaveScale, 1, this.empWaveScale)
-    const mat = this.empWaveMesh.material as THREE.MeshBasicMaterial
-    mat.opacity = 0.95
-    console.log('[juice] CyberLeek Ground Pound — Expanding Neon Shockwave Ring!')
-  }
-
-  private updateShockwaveRing(dt: number, playerX: number, playerZ: number, playerY: number): boolean {
-    if (!this.empWaveActive) return false
-
-    this.empWaveScale += dt * 17.5
-    this.empWaveMesh.scale.set(this.empWaveScale, 1, this.empWaveScale)
-
-    const shockwaveRadius = this.empWaveScale * 1.25
-    const dx = playerX - this.group.position.x
-    const dz = playerZ - this.group.position.z
+    const bX = this.group.position.x
+    const bZ = this.group.position.z
+    const dx = playerX - bX
+    const dz = playerZ - bZ
     const distToPlayer = Math.sqrt(dx * dx + dz * dz)
 
-    let shockwaveHit = false
-    // Collision check: player is touching the expanding ring boundary
-    if (Math.abs(distToPlayer - shockwaveRadius) < 1.4) {
-      // JUMP OVER RULE: If player jumped high (playerY >= 0.65), they hop safely over the ring!
-      if (playerY < 0.65) {
-        shockwaveHit = true
+    // Dynamic Combat Speed
+    const moveSpeed = this.phase === 2 ? 10.5 : 7.5
+
+    // State Machine Decision Flow
+    if (this.actionState === 'none') {
+      const dirX = distToPlayer > 0.1 ? dx / distToPlayer : 0
+      const dirZ = distToPlayer > 0.1 ? dz / distToPlayer : 0
+
+      this.group.position.x += dirX * moveSpeed * dt
+      this.group.position.z += dirZ * moveSpeed * dt
+      this.group.position.x = Math.max(this.arenaMinX, Math.min(this.arenaMaxX, this.group.position.x))
+      this.group.position.z = Math.max(this.arenaMinZ, Math.min(this.arenaMaxZ, this.group.position.z))
+
+      // Attack Pattern Timer
+      const attackInterval = this.phase === 2 ? 2.0 : 3.0
+      if (this.attackTimer >= attackInterval) {
+        this.attackTimer = 0
+        const rand = Math.random()
+
+        if (this.phase === 1) {
+          // Phase 1 Attacks: 60% Throw Leeks, 40% Leap Slam
+          if (rand < 0.60) {
+            this.actionState = 'throw_leeks'
+            this.stateTimer = 0
+            this.rig.triggerDiscThrow(0.6)
+            if (onHordeSpawn && Math.random() < 0.5) onHordeSpawn()
+          } else {
+            this.actionState = 'leap_slam'
+            this.stateTimer = 0
+            this.leapTarget = { x: playerX, z: playerZ }
+            this.rig.triggerLeapSlam(0.8)
+          }
+        } else {
+          // Phase 2 Attacks: 35% Bouncing Discs, 35% Throw Leeks Burst, 30% Quantum Dash
+          if (rand < 0.35) {
+            this.actionState = 'spin_ricochet'
+            this.stateTimer = 0
+            this.rig.triggerSpinAttack(0.8)
+          } else if (rand < 0.70) {
+            this.actionState = 'throw_leeks'
+            this.stateTimer = 0
+            this.rig.triggerDiscThrow(0.6)
+            if (onHordeSpawn) onHordeSpawn()
+          } else {
+            this.actionState = 'teleport_vanish'
+            this.stateTimer = 0
+          }
+        }
+      }
+    } else {
+      this.handleActionState(dt, playerX, playerZ)
+    }
+
+    // Update Expanding Shockwave Ring
+    let shockwaveHitPlayer = false
+    if (this.empWaveActive) {
+      this.empWaveScale += dt * (this.phase === 2 ? 22.0 : 16.0)
+      const currentRadius = this.empWaveScale
+      this.empWaveMesh.scale.set(this.empWaveScale, this.empWaveScale, 1.0)
+      const mat = this.empWaveMesh.material as THREE.MeshBasicMaterial
+      mat.opacity = Math.max(0, 1 - this.empWaveScale / this.empWaveMaxScale)
+
+      // Damage player if inside expanding shockwave ring and not jumping
+      if (
+        Math.abs(distToPlayer - currentRadius) < 1.2 &&
+        playerY < 0.45
+      ) {
+        shockwaveHitPlayer = true
+      }
+
+      if (this.empWaveScale >= this.empWaveMaxScale) {
+        this.empWaveActive = false
+        mat.opacity = 0
       }
     }
 
+    // Update Attacks & Instanced Renderers
+    this.updateAttacks(dt)
+    this.rig.update(dt, {
+      velocity: { x: dx, z: dz },
+      isMoving: true,
+      isSprinting: this.phase === 2,
+      phase: this.phase as 1 | 2,
+    })
+
+    return { won: false, shockwaveActive: shockwaveHitPlayer }
+  }
+
+  private handleActionState(dt: number, playerX: number, playerZ: number): void {
+    this.stateTimer += dt
+
+    switch (this.actionState) {
+      case 'throw_leeks': {
+        // Wind up for 0.35s then launch 3 or 5 Poireaux in a fan
+        if (this.stateTimer >= 0.35 && this.stateTimer - dt < 0.35) {
+          const count = this.phase === 2 ? 5 : 3
+          const spread = this.phase === 2 ? 0.6 : 0.4
+          const baseAngle = Math.atan2(playerZ - this.group.position.z, playerX - this.group.position.x)
+          const speed = this.phase === 2 ? 14.0 : 10.5
+
+          for (let i = 0; i < count; i++) {
+            const angleOffset = (i - (count - 1) / 2) * spread
+            const angle = baseAngle + angleOffset
+            this.spawnPoireau(
+              this.group.position.x,
+              this.group.position.z,
+              Math.cos(angle) * speed,
+              Math.sin(angle) * speed
+            )
+          }
+        }
+        if (this.stateTimer >= 0.7) {
+          this.actionState = 'none'
+          this.stateTimer = 0
+        }
+        break
+      }
+
+      case 'leap_slam': {
+        const leapDuration = 0.8
+        const progress = Math.min(1, this.stateTimer / leapDuration)
+        this.group.position.y = Math.sin(progress * Math.PI) * 4.5
+        this.group.position.x += (this.leapTarget.x - this.group.position.x) * dt * 5.0
+        this.group.position.z += (this.leapTarget.z - this.group.position.z) * dt * 5.0
+
+        if (this.stateTimer >= leapDuration) {
+          this.group.position.y = 0
+          this.triggerShockwave()
+          this.actionState = 'none'
+          this.stateTimer = 0
+        }
+        break
+      }
+
+      case 'spin_ricochet': {
+        if (this.stateTimer >= 0.4 && this.stateTimer - dt < 0.4) {
+          // Fire 6 ricocheting discs in 360-degree radial ring
+          const count = 6
+          const speed = 12.0
+          for (let i = 0; i < count; i++) {
+            const angle = (i / count) * Math.PI * 2
+            this.spawnRicochetDisc(
+              this.group.position.x,
+              this.group.position.z,
+              Math.cos(angle) * speed,
+              Math.sin(angle) * speed,
+              4
+            )
+          }
+        }
+        if (this.stateTimer >= 0.8) {
+          this.actionState = 'none'
+          this.stateTimer = 0
+        }
+        break
+      }
+
+      case 'teleport_vanish': {
+        this.group.visible = false
+        if (this.stateTimer >= 0.35) {
+          // Reappear near player
+          const offsetAngle = Math.random() * Math.PI * 2
+          const offsetX = Math.cos(offsetAngle) * 6.5
+          const offsetZ = Math.sin(offsetAngle) * 6.5
+          this.group.position.set(playerX + offsetX, 0, playerZ + offsetZ)
+          this.group.visible = true
+
+          const dashDx = playerX - this.group.position.x
+          const dashDz = playerZ - this.group.position.z
+          const dist = Math.sqrt(dashDx * dashDx + dashDz * dashDz)
+          const dashSpeed = 16.0
+          this.dashVelocity = {
+            x: (dashDx / Math.max(0.1, dist)) * dashSpeed,
+            z: (dashDz / Math.max(0.1, dist)) * dashSpeed,
+          }
+          this.actionState = 'quantum_dash'
+          this.isQuantumDashing = true
+          this.stateTimer = 0
+        }
+        break
+      }
+
+      case 'quantum_dash': {
+        this.group.position.x += this.dashVelocity.x * dt
+        this.group.position.z += this.dashVelocity.z * dt
+        if (this.stateTimer >= 0.45) {
+          this.isQuantumDashing = false
+          this.actionState = 'none'
+          this.stateTimer = 0
+        }
+        break
+      }
+    }
+  }
+
+  private triggerShockwave(): void {
+    this.empWaveActive = true
+    this.empWaveScale = 0.2
+    this.empWaveMesh.position.set(this.group.position.x, 0.05, this.group.position.z)
     const mat = this.empWaveMesh.material as THREE.MeshBasicMaterial
-    mat.opacity = Math.max(0, 1.0 - this.empWaveScale / this.empWaveMaxScale)
-
-    if (this.empWaveScale >= this.empWaveMaxScale) {
-      this.empWaveActive = false
-      mat.opacity = 0
-    }
-
-    return shockwaveHit
+    mat.opacity = 1.0
   }
 
-  /**
-   * Phase 1: Fan Laser Discs Spread
-   */
-  private fireFanDiscs(playerX: number, playerZ: number, count: number): void {
-    const baseAngle = Math.atan2(playerX - this.group.position.x, playerZ - this.group.position.z)
-    for (let i = 0; i < count; i++) {
-      const offset = (i - (count - 1) / 2) * 0.24
-      const angle = baseAngle + offset
-      const p = this.attacks.find((a) => !a.active)
-      if (p) {
-        p.type = 'disc'
-        p.x = this.group.position.x
-        p.z = this.group.position.z
-        p.vx = Math.sin(angle) * 11.5
-        p.vz = Math.cos(angle) * 11.5
-        p.active = true
-        p.life = 3.2
-        p.bounces = 0
-        p.maxBounces = 0
+  private spawnPoireau(x: number, z: number, vx: number, vz: number): void {
+    this.attacks.push({
+      type: 'poireau',
+      x,
+      z,
+      vx,
+      vz,
+      radius: 0.55,
+      active: true,
+      life: 5.0,
+      bounces: 0,
+      maxBounces: 1,
+      rotationY: Math.random() * Math.PI * 2,
+    })
+  }
+
+  private spawnRicochetDisc(x: number, z: number, vx: number, vz: number, maxBounces: number): void {
+    this.attacks.push({
+      type: 'ricochet',
+      x,
+      z,
+      vx,
+      vz,
+      radius: 0.5,
+      active: true,
+      life: 7.0,
+      bounces: 0,
+      maxBounces,
+    })
+  }
+
+  private updateAttacks(dt: number): void {
+    let discIdx = 0
+    let leekIdx = 0
+
+    for (let i = 0; i < this.attacks.length; i++) {
+      const atk = this.attacks[i]
+      if (!atk || !atk.active) continue
+
+      atk.life -= dt
+      atk.x += atk.vx * dt
+      atk.z += atk.vz * dt
+
+      if (atk.rotationY !== undefined) {
+        atk.rotationY += dt * 12.0 // Fast spinning leek
       }
-    }
-  }
 
-  /**
-   * Phase 2 & 3: Ricocheting Laser Energy Discs
-   * Bounces off the arena walls up to 3 times!
-   */
-  public fireRicochetDiscs(count: number): void {
-    for (let i = 0; i < count; i++) {
-      const angle = (i / count) * Math.PI * 2 + (Math.random() * 0.2 - 0.1)
-      const p = this.attacks.find((a) => !a.active)
-      if (p) {
-        p.type = 'ricochet'
-        p.x = this.group.position.x
-        p.z = this.group.position.z
-        p.vx = Math.cos(angle) * 12.0
-        p.vz = Math.sin(angle) * 12.0
-        p.active = true
-        p.life = 5.0
-        p.bounces = 0
-        p.maxBounces = 3
-      }
-    }
-  }
-
-  private fireRadialDiscs(count: number): void {
-    for (let i = 0; i < count; i++) {
-      const angle = (i / count) * Math.PI * 2
-      const p = this.attacks.find((a) => !a.active)
-      if (p) {
-        p.type = 'disc'
-        p.x = this.group.position.x
-        p.z = this.group.position.z
-        p.vx = Math.cos(angle) * 9.5
-        p.vz = Math.sin(angle) * 9.5
-        p.active = true
-        p.life = 3.2
-        p.bounces = 0
-        p.maxBounces = 0
-      }
-    }
-  }
-
-  private updateProjectiles(dt: number): void {
-    for (let i = 0; i < this.maxAttacks; i++) {
-      const a = this.attacks[i]
-      if (!a || !a.active) {
-        this.dummy.position.set(0, -999, 0)
-        this.dummy.updateMatrix()
-        this.attackMesh.setMatrixAt(i, this.dummy.matrix)
+      // Ricochet off arena boundaries
+      if (atk.type === 'ricochet') {
+        if (atk.x <= this.arenaMinX || atk.x >= this.arenaMaxX) {
+          atk.vx = -atk.vx
+          atk.bounces++
+          atk.x = Math.max(this.arenaMinX, Math.min(this.arenaMaxX, atk.x))
+        }
+        if (atk.z <= this.arenaMinZ || atk.z >= this.arenaMaxZ) {
+          atk.vz = -atk.vz
+          atk.bounces++
+          atk.z = Math.max(this.arenaMinZ, Math.min(this.arenaMaxZ, atk.z))
+        }
+        if (atk.bounces >= atk.maxBounces || atk.life <= 0) {
+          atk.active = false
+          continue
+        }
+      } else if (atk.life <= 0) {
+        atk.active = false
         continue
       }
 
-      a.x += a.vx * dt
-      a.z += a.vz * dt
-      a.life -= dt
-
-      // Wall Ricochet Reflection Physics
-      if (a.type === 'ricochet' && a.bounces < a.maxBounces) {
-        if (a.x <= this.arenaMinX) {
-          a.x = this.arenaMinX + 0.1
-          a.vx = Math.abs(a.vx)
-          a.bounces++
-        } else if (a.x >= this.arenaMaxX) {
-          a.x = this.arenaMaxX - 0.1
-          a.vx = -Math.abs(a.vx)
-          a.bounces++
-        }
-
-        if (a.z <= this.arenaMinZ) {
-          a.z = this.arenaMinZ + 0.1
-          a.vz = Math.abs(a.vz)
-          a.bounces++
-        } else if (a.z >= this.arenaMaxZ) {
-          a.z = this.arenaMaxZ - 0.1
-          a.vz = -Math.abs(a.vz)
-          a.bounces++
-        }
-      } else {
-        // Regular projectile bounds check
-        if (a.x < 0 || a.x > 48 || a.z < 0 || a.z > 36) {
-          a.active = false
-        }
+      // Render Projectile Instances
+      if (atk.type === 'poireau' && leekIdx < this.maxAttacks) {
+        this.dummy.position.set(atk.x, 0.6, atk.z)
+        this.dummy.rotation.set(Math.PI / 2, atk.rotationY || 0, Math.atan2(atk.vz, atk.vx))
+        this.dummy.scale.set(1.2, 1.2, 1.2)
+        this.dummy.updateMatrix()
+        this.leekMesh.setMatrixAt(leekIdx++, this.dummy.matrix)
+      } else if (discIdx < this.maxAttacks) {
+        this.dummy.position.set(atk.x, 0.5, atk.z)
+        this.dummy.rotation.set(Math.PI / 2, 0, Math.atan2(atk.vz, atk.vx))
+        this.dummy.scale.set(1.0, 1.0, 1.0)
+        this.dummy.updateMatrix()
+        this.discMesh.setMatrixAt(discIdx++, this.dummy.matrix)
       }
-
-      if (a.life <= 0 || a.bounces > a.maxBounces) {
-        a.active = false
-      }
-
-      this.dummy.position.set(a.x, 0.45, a.z)
-      this.dummy.rotation.y += dt * 22.0
-      this.dummy.updateMatrix()
-      this.attackMesh.setMatrixAt(i, this.dummy.matrix)
     }
-    this.attackMesh.instanceMatrix.needsUpdate = true
+
+    // Hide remaining instances
+    for (let i = discIdx; i < this.maxAttacks; i++) {
+      this.dummy.position.set(0, -999, 0)
+      this.dummy.updateMatrix()
+      this.discMesh.setMatrixAt(i, this.dummy.matrix)
+    }
+    for (let i = leekIdx; i < this.maxAttacks; i++) {
+      this.dummy.position.set(0, -999, 0)
+      this.dummy.updateMatrix()
+      this.leekMesh.setMatrixAt(i, this.dummy.matrix)
+    }
+
+    this.discMesh.instanceMatrix.needsUpdate = true
+    this.leekMesh.instanceMatrix.needsUpdate = true
+
+    this.attacks = this.attacks.filter((a) => a.active)
   }
 
-  public getActiveDiscs(): { x: number; z: number; radius: number }[] {
-    return this.attacks.filter((a) => a.active).map((a) => ({ x: a.x, z: a.z, radius: a.radius }))
+  getActiveDiscs(): BossAttack[] {
+    return this.attacks.filter((a) => a.active)
   }
 
   get position(): THREE.Vector3 {
     return this.group.position
   }
 }
-

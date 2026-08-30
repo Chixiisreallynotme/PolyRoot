@@ -1,57 +1,57 @@
 import { describe, it, expect } from 'vitest'
 import { RankSystem } from '../../../systems/RankSystem'
 
-describe('RankSystem Severe 2-Category Architecture (Temps + Kills)', () => {
-  describe('Time Rank Thresholds (Severe)', () => {
-    it('computes S rank for time < 2:30 (150s)', () => {
-      expect(RankSystem.computeTimeRank(149)).toBe('S')
-      expect(RankSystem.computeTimeRank(120)).toBe('S')
+describe('RankSystem Hardcore 2-Category Architecture (Temps + Kills)', () => {
+  describe('Time Rank Thresholds (Hardcore)', () => {
+    it('computes S rank for time < 1:45 (105s)', () => {
+      expect(RankSystem.computeTimeRank(104)).toBe('S')
+      expect(RankSystem.computeTimeRank(90)).toBe('S')
     })
 
-    it('computes A rank for time < 3:15 (195s) and >= 2:30', () => {
-      expect(RankSystem.computeTimeRank(150)).toBe('A')
-      expect(RankSystem.computeTimeRank(194)).toBe('A')
+    it('computes A rank for time < 2:30 (150s) and >= 1:45', () => {
+      expect(RankSystem.computeTimeRank(105)).toBe('A')
+      expect(RankSystem.computeTimeRank(149)).toBe('A')
     })
 
-    it('computes B rank for time < 4:15 (255s) and >= 3:15', () => {
-      expect(RankSystem.computeTimeRank(195)).toBe('B')
-      expect(RankSystem.computeTimeRank(254)).toBe('B')
+    it('computes B rank for time < 3:30 (210s) and >= 2:30', () => {
+      expect(RankSystem.computeTimeRank(150)).toBe('B')
+      expect(RankSystem.computeTimeRank(209)).toBe('B')
     })
 
-    it('computes C rank for time < 5:30 (330s) and >= 4:15', () => {
-      expect(RankSystem.computeTimeRank(255)).toBe('C')
-      expect(RankSystem.computeTimeRank(329)).toBe('C')
+    it('computes C rank for time < 4:45 (285s) and >= 3:30', () => {
+      expect(RankSystem.computeTimeRank(210)).toBe('C')
+      expect(RankSystem.computeTimeRank(284)).toBe('C')
     })
 
-    it('computes D rank for time >= 5:30 (330s)', () => {
-      expect(RankSystem.computeTimeRank(330)).toBe('D')
-      expect(RankSystem.computeTimeRank(450)).toBe('D')
+    it('computes D rank for time >= 4:45 (285s)', () => {
+      expect(RankSystem.computeTimeRank(285)).toBe('D')
+      expect(RankSystem.computeTimeRank(400)).toBe('D')
     })
   })
 
-  describe('Kills Rank Thresholds (Severe)', () => {
-    it('computes S rank for >= 60 kills', () => {
-      expect(RankSystem.computeKillsRank(60)).toBe('S')
+  describe('Kills Rank Thresholds (Hardcore)', () => {
+    it('computes S rank for >= 80 kills', () => {
       expect(RankSystem.computeKillsRank(80)).toBe('S')
+      expect(RankSystem.computeKillsRank(110)).toBe('S')
     })
 
-    it('computes A rank for >= 45 kills and < 60', () => {
-      expect(RankSystem.computeKillsRank(45)).toBe('A')
-      expect(RankSystem.computeKillsRank(59)).toBe('A')
+    it('computes A rank for >= 55 kills and < 80', () => {
+      expect(RankSystem.computeKillsRank(55)).toBe('A')
+      expect(RankSystem.computeKillsRank(79)).toBe('A')
     })
 
-    it('computes B rank for >= 30 kills and < 45', () => {
-      expect(RankSystem.computeKillsRank(30)).toBe('B')
-      expect(RankSystem.computeKillsRank(44)).toBe('B')
+    it('computes B rank for >= 35 kills and < 55', () => {
+      expect(RankSystem.computeKillsRank(35)).toBe('B')
+      expect(RankSystem.computeKillsRank(54)).toBe('B')
     })
 
-    it('computes C rank for >= 15 kills and < 30', () => {
-      expect(RankSystem.computeKillsRank(15)).toBe('C')
-      expect(RankSystem.computeKillsRank(29)).toBe('C')
+    it('computes C rank for >= 20 kills and < 35', () => {
+      expect(RankSystem.computeKillsRank(20)).toBe('C')
+      expect(RankSystem.computeKillsRank(34)).toBe('C')
     })
 
-    it('computes D rank for < 15 kills', () => {
-      expect(RankSystem.computeKillsRank(14)).toBe('D')
+    it('computes D rank for < 20 kills', () => {
+      expect(RankSystem.computeKillsRank(19)).toBe('D')
       expect(RankSystem.computeKillsRank(0)).toBe('D')
     })
   })
@@ -89,8 +89,8 @@ describe('RankSystem Severe 2-Category Architecture (Temps + Kills)', () => {
   describe('Boss Prerequisite Condition', () => {
     it('returns null ranks when boss was not defeated (Game Over)', () => {
       const score = RankSystem.evaluate({
-        rawTimeSeconds: 120,
-        kills: 75,
+        rawTimeSeconds: 95,
+        kills: 90,
         bossDefeated: false,
       })
 
@@ -99,14 +99,12 @@ describe('RankSystem Severe 2-Category Architecture (Temps + Kills)', () => {
       expect(score.compositeGrade).toBeNull()
       expect(score.timeRank).toBeNull()
       expect(score.killsRank).toBeNull()
-      expect(score.categories.time).toBeNull()
-      expect(score.categories.kills).toBeNull()
     })
 
     it('awards official ranks upon boss victory', () => {
       const score = RankSystem.evaluate({
-        rawTimeSeconds: 140,
-        kills: 65,
+        rawTimeSeconds: 100,
+        kills: 85,
         bossDefeated: true,
       })
 

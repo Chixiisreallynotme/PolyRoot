@@ -1,8 +1,8 @@
-// PolyRoot Severe 2-Category Rank Engine (Temps + Kills)
+// PolyRoot Hardcore 2-Category Rank Engine (Temps + Kills)
 // Le rang officiel n'est attribué QU'EN CAS DE VICTOIRE (Boss CyberLeek vaincu).
 // Barème sévère :
-// 1. Temps Chrono : S (< 2:30 / 150s), A (< 3:15 / 195s), B (< 4:15 / 255s), C (< 5:30 / 330s), D (>= 5:30)
-// 2. Kills : S (>= 60 kills), A (>= 45 kills), B (>= 30 kills), C (>= 15 kills), D (< 15 kills)
+// 1. Temps Chrono : S (< 1:45 / 105s), A (< 2:30 / 150s), B (< 3:30 / 210s), C (< 4:45 / 285s), D (>= 4:45)
+// 2. Kills : S (>= 80 kills), A (>= 55 kills), B (>= 35 kills), C (>= 20 kills), D (< 20 kills)
 // 3. Grade Composite : S+ (Double S), S (S+A), A (A+A / S+B), B (B+B / A+C), C (C+C / B+D), D (D+D)
 
 export type Rank = 'S' | 'A' | 'B' | 'C' | 'D'
@@ -44,23 +44,23 @@ export class RankSystem {
   private static readonly STORAGE_KEY = 'polyroot_best_score'
 
   static computeTimeRank(scoreTimeSeconds: number): Rank {
-    if (scoreTimeSeconds < 150) return 'S' // < 2:30
-    if (scoreTimeSeconds < 195) return 'A' // < 3:15
-    if (scoreTimeSeconds < 255) return 'B' // < 4:15
-    if (scoreTimeSeconds < 330) return 'C' // < 5:30
+    if (scoreTimeSeconds < 105) return 'S' // < 1:45
+    if (scoreTimeSeconds < 150) return 'A' // < 2:30
+    if (scoreTimeSeconds < 210) return 'B' // < 3:30
+    if (scoreTimeSeconds < 285) return 'C' // < 4:45
     return 'D'
   }
 
   static computeKillsRank(kills: number): Rank {
-    if (kills >= 60) return 'S' // >= 60 kills
-    if (kills >= 45) return 'A' // >= 45 kills
-    if (kills >= 30) return 'B' // >= 30 kills
-    if (kills >= 15) return 'C' // >= 15 kills
+    if (kills >= 80) return 'S' // >= 80 kills
+    if (kills >= 55) return 'A' // >= 55 kills
+    if (kills >= 35) return 'B' // >= 35 kills
+    if (kills >= 20) return 'C' // >= 20 kills
     return 'D'
   }
 
   static computeCompositeGrade(timeRank: Rank, killsRank: Rank): CompositeGrade {
-    // S+ for flawless Double-S overclock performance
+    // S+ ONLY for flawless Double-S overclock performance
     if (timeRank === 'S' && killsRank === 'S') {
       return 'S+'
     }
@@ -164,35 +164,35 @@ export class RankSystem {
 
     // Strict Near-miss calculations
     let nearMissMessage: string | null = null
-    if (scoreTimeSeconds > 150 && scoreTimeSeconds <= 160) {
-      const diff = Math.ceil(scoreTimeSeconds - 150)
-      nearMissMessage = `à ${diff}s du rang S Chrono (< 2:30) !`
-    } else if (kills >= 56 && kills < 60) {
-      const diff = 60 - kills
-      nearMissMessage = `à ${diff} neutralisation${diff > 1 ? 's' : ''} du rang S (60 kills) !`
+    if (scoreTimeSeconds > 105 && scoreTimeSeconds <= 115) {
+      const diff = Math.ceil(scoreTimeSeconds - 105)
+      nearMissMessage = `à ${diff}s du rang S Chrono (< 1:45) !`
+    } else if (kills >= 75 && kills < 80) {
+      const diff = 80 - kills
+      nearMissMessage = `à ${diff} neutralisation${diff > 1 ? 's' : ''} du rang S (80 kills) !`
     }
 
     const timeDescription =
       timeRank === 'S'
-        ? 'Cadence chirurgicale d\'overclock (< 2:30)'
+        ? 'Cadence chirurgicale d\'overclock (< 1:45)'
         : timeRank === 'A'
-        ? 'Excellente vitesse d\'exécution (< 3:15)'
+        ? 'Excellente vitesse d\'exécution (< 2:30)'
         : timeRank === 'B'
-        ? 'Temps de cycle standard (< 4:15)'
+        ? 'Temps de cycle standard (< 3:30)'
         : timeRank === 'C'
-        ? 'Cycle prolongé (< 5:30)'
+        ? 'Cycle prolongé (< 4:45)'
         : 'Surchauffe / Temps dépassé'
 
     const killsDescription =
       killsRank === 'S'
-        ? 'Purge totale de la mémoire (>= 60 kills)'
+        ? 'Purge totale de la mémoire (>= 80 kills)'
         : killsRank === 'A'
-        ? 'Neutralisation massive (>= 45 kills)'
+        ? 'Neutralisation massive (>= 55 kills)'
         : killsRank === 'B'
-        ? 'Nettoyage intermédiaire (>= 30 kills)'
+        ? 'Nettoyage intermédiaire (>= 35 kills)'
         : killsRank === 'C'
-        ? 'Nettoyage minimal (>= 15 kills)'
-        : 'Activité ennemie résiduelle élevée (< 15 kills)'
+        ? 'Nettoyage minimal (>= 20 kills)'
+        : 'Activité ennemie résiduelle élevée (< 20 kills)'
 
     return {
       rawTimeSeconds,
@@ -209,14 +209,14 @@ export class RankSystem {
           label: 'TEMPS CHRONO',
           detail: this.formatTime(scoreTimeSeconds),
           description: timeDescription,
-          threshold: 'S < 2:30 | A < 3:15 | B < 4:15 | C < 5:30 | D >= 5:30',
+          threshold: 'S < 1:45 | A < 2:30 | B < 3:30 | C < 4:45 | D >= 4:45',
         },
         kills: {
           rank: killsRank,
           label: 'NEUTRALISATIONS',
           detail: `${kills} KILLS`,
           description: killsDescription,
-          threshold: 'S >= 60 | A >= 45 | B >= 30 | C >= 15 | D < 15',
+          threshold: 'S >= 80 | A >= 55 | B >= 35 | C >= 20 | D < 20',
         },
       },
       isNewBest,

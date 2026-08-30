@@ -675,6 +675,24 @@ export class CyberLeekRig {
     return this.animState !== 'idle' && this.animState !== 'march' && this.animState !== 'sprint'
   }
 
+  setPhaseTint(phase: number): void {
+    const isRage = phase >= 2
+    if (this.nodes.cyanPiping) {
+      for (const p of this.nodes.cyanPiping) {
+        const mat = p.material as THREE.MeshBasicMaterial
+        if (mat && mat.color) {
+          mat.color.setHex(isRage ? 0xff2244 : 0x00ffff)
+        }
+      }
+    }
+    if (this.nodes.leftFist && this.nodes.rightFist) {
+      const matL = this.nodes.leftFist.material as THREE.MeshBasicMaterial
+      const matR = this.nodes.rightFist.material as THREE.MeshBasicMaterial
+      if (matL && matL.color) matL.color.setHex(isRage ? 0xff0033 : 0x00ffff)
+      if (matR && matR.color) matR.color.setHex(isRage ? 0xff0033 : 0x00ffff)
+    }
+  }
+
   resetToIdle(): void {
     this.animState = 'idle'
     this.actionTime = 0

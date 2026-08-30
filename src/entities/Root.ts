@@ -25,9 +25,9 @@ export class Root {
     this.bodyGroup = new THREE.Group()
     this.group.add(this.bodyGroup)
 
-    const orangeMat = new THREE.MeshLambertMaterial({ color: 0xff6b22, flatShading: true })
-    const darkOrangeMat = new THREE.MeshLambertMaterial({ color: 0xd94e0b, flatShading: true })
-    const peachMat = new THREE.MeshLambertMaterial({ color: 0xff8a65, flatShading: true })
+    const orangeMat = new THREE.MeshLambertMaterial({ color: 0xff5500, flatShading: true })
+    const darkOrangeMat = new THREE.MeshLambertMaterial({ color: 0xc83200, flatShading: true })
+    const peachMat = new THREE.MeshLambertMaterial({ color: 0xff8555, flatShading: true })
     const whiteMat = new THREE.MeshLambertMaterial({ color: 0xffffff, flatShading: true })
     const eyeBlackMat = new THREE.MeshLambertMaterial({ color: 0x070a10, flatShading: true })
     const mouthBlackMat = new THREE.MeshLambertMaterial({ color: 0x0f172a, flatShading: true })
