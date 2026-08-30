@@ -34,7 +34,7 @@ export class VictoryScreen {
       document.body.appendChild(this.container)
     }
 
-    const title = isVictory ? 'SYSTÈME DÉBOGUÉ // MISSION ACCOMPLIE' : 'COURT-CIRCUIT // ÉCHEC SYSTÈME'
+    const title = isVictory ? 'PU-8 RESTAURATION VALIDÉE // SYSTÈME EN LIGNE' : 'INTERRUPTION BUS CRITIQUE // ÉCHEC SYSTÈME'
     const titleColor = isVictory ? '#00ff88' : '#ff2244'
     const rankBadgeColor = score.rank === 'S' ? '#ffd700' : score.rank === 'A' ? '#00ff88' : '#3399ff'
 
@@ -43,8 +43,8 @@ export class VictoryScreen {
       : ''
 
     const subText = isVictory
-      ? `8 / 8 PUCES SURCHAUFFÉES // UNITÉ CENTRALE RÉINITIALISÉE`
-      : `${pucesHeated} / 8 PUCES SURCHAUFFÉES AVANT INTERRUPTION DU SIGNAL`
+      ? `8 / 8 CIRCUITS INTÉGRÉS SYNCHRONISÉS // CARTE MÈRE PU-8 OPÉRATIONNELLE`
+      : `${pucesHeated} / 8 CIRCUITS INTÉGRÉS RESTAURÉS AVANT DÉCONNEXION MATÉRIELLE`
 
     this.container.innerHTML = `
       <div style="background: #0f1926; border: 2px solid ${titleColor}; padding: 36px 40px; max-width: 620px; text-align: center; box-shadow: 0 0 35px rgba(0,0,0,0.85); border-radius: 8px;">
@@ -58,19 +58,19 @@ export class VictoryScreen {
 
         <div style="background: #152233; border: 1px solid #1e3a5f; padding: 18px 22px; margin-bottom: 22px; text-align: left; border-radius: 6px;">
           <div style="display: flex; justify-content: space-between; margin-bottom: 10px; font-size: 13px;">
-            <span style="color: #94a3b8; letter-spacing: 1px;">TEMPS BRUT:</span>
+            <span style="color: #94a3b8; letter-spacing: 1px;">CYCLE HORLOGE (TEMPS BRUT):</span>
             <span style="color: #ffffff; font-weight: bold; letter-spacing: 1px;">${RankSystem.formatTime(score.rawTimeSeconds)}</span>
           </div>
           <div style="display: flex; justify-content: space-between; margin-bottom: 10px; font-size: 13px;">
-            <span style="color: #94a3b8; letter-spacing: 1px;">BONUS SÉCURISATION (${score.kills} ELIMS):</span>
+            <span style="color: #94a3b8; letter-spacing: 1px;">PURGE PARASITES (${score.kills} ÉLIMS):</span>
             <span style="color: #00ff88; font-weight: bold; letter-spacing: 1px;">-${(score.kills * 0.05).toFixed(2)}s</span>
           </div>
           <div style="display: flex; justify-content: space-between; margin-bottom: 10px; font-size: 13px;">
-            <span style="color: #94a3b8; letter-spacing: 1px;">SCORE FINAL:</span>
+            <span style="color: #94a3b8; letter-spacing: 1px;">INDEX DE PERFORMANCE:</span>
             <span style="color: #00ff88; font-weight: bold; letter-spacing: 1px;">${RankSystem.formatTime(score.scoreTimeSeconds)}</span>
           </div>
           <div style="display: flex; justify-content: space-between; align-items: center; border-top: 1px solid #1e3a5f; padding-top: 12px; margin-top: 6px;">
-            <span style="color: #94a3b8; letter-spacing: 1px;">RANG OBTENU:</span>
+            <span style="color: #94a3b8; letter-spacing: 1px;">QUALIFICATION SYSTÈME:</span>
             <span style="font-family: 'Bitcount Grid Double', monospace; font-size: 24px; font-weight: 900; color: ${rankBadgeColor}; letter-spacing: 2px;">RANG ${score.rank}</span>
           </div>
         </div>
@@ -78,7 +78,7 @@ export class VictoryScreen {
         ${nearMissHtml}
 
         <button id="btn-restart-game" style="background: #00ff88; color: #081018; border: none; font-family: 'Bitcount Grid Double', monospace; font-size: 15px; font-weight: 900; padding: 14px 28px; cursor: pointer; text-transform: uppercase; letter-spacing: 2px; border-radius: 4px; box-shadow: 0 0 16px rgba(0,255,136,0.4); transition: transform 0.15s ease;">
-          [R] RÉINITIALISER LA SESSION
+          [R] RÉINITIALISER LE CYCLE
         </button>
       </div>
     `
