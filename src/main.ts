@@ -435,23 +435,16 @@ class Game {
       rawTimeSeconds: this.progressionSystem.totalTimeSeconds,
       kills: this.progressionSystem.kills,
       bossDefeated: true,
-      bossReached: true,
-      diedDuringBoss: false,
-      phase3Reached: true,
     })
     this.victoryScreen.showVictory(result, () => window.location.reload())
   }
 
   private handleGameOver(): void {
     this.isGameOver = true
-    const bossReached = this.boss.active || this.heatingSystem.isAllHeated()
     const result = RankSystem.evaluate({
       rawTimeSeconds: this.progressionSystem.totalTimeSeconds,
       kills: this.progressionSystem.kills,
       bossDefeated: false,
-      bossReached,
-      diedDuringBoss: this.boss.active,
-      phase3Reached: this.boss.phase === 2,
     })
     this.victoryScreen.showGameOver(result, this.heatingSystem.pucesHeatedCount, () => window.location.reload())
   }
