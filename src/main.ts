@@ -1,20 +1,35 @@
 import * as THREE from 'three'
 import { gsap } from 'gsap'
 import { PS1Pass } from './render/PS1Pass'
-import { Root } from './entities/Root'
+import { Player } from './entities/Player'
+import { SpawnSystem } from './systems/SpawnSystem'
+import { SpatialGrid } from './systems/SpatialGrid'
+import { HeatingSystem } from './systems/HeatingSystem'
+import { Boss } from './entities/Boss'
+import { JuiceSystem } from './systems/JuiceSystem'
+import { CameraShake } from './systems/CameraShake'
+import { ParticleSystem } from './systems/ParticleSystem'
+import { SFX } from './audio/SFX'
+import { ProgressionSystem } from './systems/ProgressionSystem'
+import { ChoiceUI } from './ui/ChoiceUI'
+import { HUD } from './ui/HUD'
+import { VictoryScreen } from './ui/VictoryScreen'
+import { RankSystem } from './systems/RankSystem'
+import { FourthWall } from './systems/FourthWall'
 
 // via threejs-fundamentals: antialias false pixelRatio1 + scene top-down camera top-down 45°
 // via threejs-shaders: ShaderMaterial Bayer + via threejs-postprocessing: 1 pass ONLY — ctx7 r184
 // via threejs-fundamentals: WebGLRenderer antialias:false powerPreference:high-performance pixelRatio:1.0 setSize(960,720,false) canvas image-rendering:pixelated 960×720
 // via threejs-psx-shader: FBO 320×240 Nearest
+// via threejs-perf: Instancing Float32Array setMatrixAt 9.9→0.5ms
 
 const app = document.getElementById('app')!
 const scene = new THREE.Scene()
 scene.background = new THREE.Color(0x1a3a2f)
 scene.fog = new THREE.FogExp2(0x1a3a2f, 0.015) // FogExp2 density 0.015 — MUST
 
-const camera = new THREE.PerspectiveCamera(60, window.innerWidth / window.innerHeight, 0.1, 100)
-camera.position.set(15, 18, 15) // top-down per prompt
+const camera = new THREE.PerspectiveCamera(60, 960 / 720, 0.1, 100)
+camera.position.set(15, 18, 15) // top-down 45°
 camera.lookAt(15, 0, 10)
 
 const renderer = new THREE.WebGLRenderer({ antialias: false, powerPreference: 'high-performance' })
@@ -28,7 +43,7 @@ app.appendChild(renderer.domElement)
 renderer.domElement.style.width = '960px'
 renderer.domElement.style.height = '720px'
 
-// 1 ShaderPass maison — WebGLRenderTarget 320×240 Nearest + Bayer + quantize 31 + FogExp2
+// 1 ShaderPass maison — WebGLRenderTarget 320×240 Nearest + Bayer 4x4 + quantize 31 + FogExp2
 const ps1Pass = new PS1Pass(renderer)
 
 // via threejs-lighting: Directional 512 PCFSoft + Point lerp(player.position)
@@ -42,61 +57,46 @@ scene.add(dir)
 scene.add(new THREE.AmbientLight(0xffffff, 0.6))
 scene.add(new THREE.HemisphereLight(0x88ffaa, 0x1a3a2f, 0.4))
 
-// Point follow Root — intensity 1.5 distance 8 lerp
+// Point light follow Root — intensity 1.5 distance 8
 const point = new THREE.PointLight(0xaaff00, 1.5, 8)
 scene.add(point)
 
 // Carte mère 30×20 — MeshLambert flatShading ONLY, 128 Nearest (baked)
 const boardGeo = new THREE.BoxGeometry(30, 0.5, 20)
 const boardMat = new THREE.MeshLambertMaterial({ color: 0x1e4a3a, flatShading: true })
-boardMat.flatShading = true
 const board = new THREE.Mesh(boardGeo, boardMat)
 board.receiveShadow = true
 board.position.set(15, -0.25, 10)
 scene.add(board)
 
-// Root low-poly fidèle — via threejs-materials MeshLambert flatShading ONLY 300 tris
-const rootEntity = new Root()
-rootEntity.group.position.set(15, 0.55, 10)
-scene.add(rootEntity.group)
+// Systems Setup
+const cameraShake = new CameraShake(camera)
+const particleSystem = new ParticleSystem(scene)
+const sfx = new SFX()
+const juiceSystem = new JuiceSystem(cameraShake, particleSystem, sfx)
+const spatialGrid = new SpatialGrid(30, 20, 3.75)
+const spawnSystem = new SpawnSystem(scene)
+const heatingSystem = new HeatingSystem(scene)
+const boss = new Boss(scene)
+const choiceUI = new ChoiceUI()
+const progression = new ProgressionSystem(scene, choiceUI, juiceSystem)
+const hud = new HUD()
+const victoryScreen = new VictoryScreen()
 
-// 8 puces placeholder — MeshLambert flatShading, castShadow true
-const puces: THREE.Mesh[] = []
-for (let i = 0; i < 8; i++) {
-  const angle = (i / 8) * Math.PI * 2
-  const r = 8 + Math.random() * 4
-  const mesh = new THREE.Mesh(
-    new THREE.BoxGeometry(1.2, 0.4, 1.2),
-    new THREE.MeshLambertMaterial({ color: 0x222222, emissive: 0x331111, emissiveIntensity: 0.2, flatShading: true })
-  )
-  mesh.position.set(15 + Math.cos(angle) * r, 0.2, 10 + Math.sin(angle) * r)
-  mesh.castShadow = true
-  mesh.receiveShadow = true
-  scene.add(mesh)
-  puces.push(mesh)
-}
+// Player Entity
+const player = new Player(scene, 15, 10)
 
-// GSAP squash test — via gsap-core: gsap.to 1.3/0.7→1 0.18s BACK back.out(1.7)
-gsap.to(rootEntity.group.scale, {
-  x: 1.2,
-  y: 0.8,
-  z: 1.2,
-  duration: 0.12,
-  yoyo: true,
-  repeat: 1,
-  ease: 'back.out(1.7)',
-  repeatDelay: 2,
-  onRepeat: () => console.log('[4th-wall] squash OK'),
-})
+// Game State
+let isGameOver = false
+let isGameWon = false
+let frameCount = 0
+let lastTime = performance.now()
 
-// Fourth wall E1: “Chut. Le jury hackathon nous regarde. Montre-leur le fun en 10 secondes.” frame==1
-let frame = 0
-let juryShown = false
-function maybeShowJury() {
-  if (!juryShown && frame === 1) {
-    juryShown = true
-    console.log('[4th-wall] jury-watch — Chut. Le jury hackathon nous regarde. Montre-leur le fun en 10 secondes.')
-    rootEntity.lookAtCamera(0.18)
+// E1 Fourth Wall: Jury watch on frame 1
+function checkJuryWatch() {
+  if (frameCount === 1) {
+    FourthWall.triggerE1JuryWatch()
+    player.root.lookAtCamera(0.18)
     const bubble = document.createElement('div')
     bubble.id = 'fourth-wall-bubble'
     bubble.textContent = 'Chut. Le jury hackathon nous regarde. Montre-leur le fun en 10 secondes.'
@@ -106,22 +106,181 @@ function maybeShowJury() {
   }
 }
 
-// A3 glitch demo: trauma 0.4+ → 1 frame
+// A3 Glitch key shortcut
 window.addEventListener('keydown', (e) => {
-  if (e.code === 'KeyG') ps1Pass.triggerGlitch()
+  if (e.code === 'KeyG') {
+    FourthWall.triggerA3Glitch()
+    ps1Pass.triggerGlitch()
+  }
 })
 
-function animate() {
+function restartGame() {
+  isGameOver = false
+  isGameWon = false
+  player.stats.hp = player.stats.maxHp
+  player.stats.pucesHeated = 0
+  player.group.position.set(15, 0.55, 10)
+  spawnSystem.clear()
+  spatialGrid.clear()
+  progression.reset()
+  for (const puce of heatingSystem.puces) {
+    puce.reset(puce.state.x, puce.state.z)
+  }
+  if (heatingSystem.puces[0]) {
+    heatingSystem.puces[0].state.isActive = true
+  }
+  boss.active = false
+  boss.group.visible = false
+  victoryScreen.hide()
+}
+
+// Main Game Loop (60 FPS locked target)
+function animate(currentTime: number) {
   requestAnimationFrame(animate)
-  frame++
-  maybeShowJury()
-  rootEntity.group.rotation.y += 0.005
-  point.position.lerp(rootEntity.group.position, 0.1)
-  point.position.y += 2
-  // 1 ShaderPass render: WebGLRenderTarget 320×240 Nearest → quad fullscreen Nearest sampling renderTarget.texture + setRenderTarget(null)
+  frameCount++
+  checkJuryWatch()
+
+  const dt = Math.min(0.1, (currentTime - lastTime) / 1000)
+  lastTime = currentTime
+
+  if (!isGameOver && !isGameWon && !choiceUI.visible) {
+    // 1. Update Progression
+    progression.update(dt)
+
+    // 2. Update Heating
+    const heatResult = heatingSystem.update(dt, player.position, juiceSystem)
+    if (heatResult.boom) {
+      progression.onPuceHeated(heatResult.puceIndex, player)
+      if (heatResult.puceIndex === 1) {
+        FourthWall.triggerA1LookAt()
+      } else if (heatResult.puceIndex === 4 || heatResult.puceIndex === 8) {
+        FourthWall.triggerA2Binary()
+      }
+    }
+
+    if (heatResult.allComplete && !boss.active && !isGameWon) {
+      boss.spawn()
+      FourthWall.triggerB2CyberLeek(RankSystem.formatTime(progression.rawTime))
+    }
+
+    // 3. Update Player
+    player.update(dt, heatResult.speedScale)
+
+    // 4. Update Spawner & Spatial Grid
+    spawnSystem.update(dt, { x: player.position.x, z: player.position.z }, spatialGrid)
+
+    // 5. Update Boss
+    if (boss.active) {
+      const bossResult = boss.update(dt, spawnSystem, juiceSystem, player.position)
+      if (bossResult.isFinished) {
+        isGameWon = true
+        const finalScore = RankSystem.evaluate(progression.rawTime, progression.kills)
+        FourthWall.triggerE2BeatStudios(RankSystem.formatTime(finalScore.scoreTimeSeconds), finalScore.rank)
+        FourthWall.triggerB3CpuIrl(particleSystem.particleCount, 3, 60)
+        victoryScreen.showVictory(finalScore, restartGame)
+      }
+    }
+
+    // 6. Collision: Player vs Enemies (using SpatialGrid)
+    const nearby = spatialGrid.query(player.position.x, player.position.z, player.stats.auraRadius + 1.0)
+    for (const item of nearby) {
+      const dx = item.x - player.position.x
+      const dz = item.z - player.position.z
+      const dist = Math.sqrt(dx * dx + dz * dz)
+
+      // Aura pushback
+      if (dist < player.stats.auraRadius + item.radius && dist > 0.01) {
+        const enemy = spawnSystem.killEnemy(item.id, spatialGrid)
+        if (enemy) {
+          enemy.hp -= player.stats.auraPower * dt * 5.0
+          if (enemy.hp <= 0) {
+            progression.onEnemyKilled(enemy.x, enemy.z)
+            juiceSystem.trigger('medium', { x: enemy.x, y: 0.4, z: enemy.z })
+          }
+        }
+      }
+
+      // Player take hit
+      if (dist < 0.6 + item.radius) {
+        const tookHit = player.takeDamage(1)
+        if (tookHit) {
+          juiceSystem.trigger('medium', { x: player.position.x, y: 0.5, z: player.position.z }, player.root.group)
+          if (player.stats.hp <= 0) {
+            isGameOver = true
+            const finalScore = RankSystem.evaluate(progression.rawTime, progression.kills)
+            if (finalScore.nearMissMessage) {
+              FourthWall.triggerB1NearMiss(Math.ceil(finalScore.scoreTimeSeconds - 225))
+            }
+            FourthWall.triggerB3CpuIrl(particleSystem.particleCount, 3, 60)
+            victoryScreen.showGameOver(finalScore, heatingSystem.heatedCount, restartGame)
+          }
+        }
+      }
+    }
+
+    // 7. Collision: Player vs Projectiles
+    for (const proj of spawnSystem.getActiveProjectiles()) {
+      const dx = proj.x - player.position.x
+      const dz = proj.z - player.position.z
+      if (dx * dx + dz * dz < 0.4) {
+        proj.active = false
+        const tookHit = player.takeDamage(1)
+        if (tookHit) {
+          juiceSystem.trigger('light', { x: player.position.x, y: 0.5, z: player.position.z })
+          if (player.stats.hp <= 0) {
+            isGameOver = true
+            const finalScore = RankSystem.evaluate(progression.rawTime, progression.kills)
+            victoryScreen.showGameOver(finalScore, heatingSystem.heatedCount, restartGame)
+          }
+        }
+      }
+    }
+
+    // 8. Auto-shoot nearest enemy
+    player.stats.shootTimer -= dt
+    if (player.stats.shootTimer <= 0) {
+      player.stats.shootTimer = player.stats.shootRate
+      const enemies = spawnSystem.getActiveEnemies()
+      if (enemies.length > 0) {
+        let nearest = enemies[0]!
+        let minDistSq = 999999
+        for (const e of enemies) {
+          const dx = e.x - player.position.x
+          const dz = e.z - player.position.z
+          const dsq = dx * dx + dz * dz
+          if (dsq < minDistSq) {
+            minDistSq = dsq
+            nearest = e
+          }
+        }
+        if (minDistSq < 100) {
+          nearest.hp -= player.stats.shootDamage
+          juiceSystem.trigger('light', { x: nearest.x, y: 0.3, z: nearest.z })
+          if (nearest.hp <= 0) {
+            spawnSystem.killEnemy(nearest.id, spatialGrid)
+            progression.onEnemyKilled(nearest.x, nearest.z)
+          }
+        }
+      }
+    }
+  }
+
+  // Update Particles
+  particleSystem.update(dt)
+
+  // Camera Shake & Lights
+  cameraShake.update(dt, player.position)
+  point.position.lerp(player.position, 0.1)
+  point.position.y = 2.0
+
+  // Update HUD
+  hud.update(player, heatingSystem, boss, progression)
+
+  // 1 ShaderPass render: 320x240 Nearest -> Bayer 31 + Fog 0.015 -> upscale 960x720
   ps1Pass.render(scene, camera)
 }
-animate()
+
+requestAnimationFrame(animate)
 
 window.addEventListener('resize', () => {
   camera.aspect = window.innerWidth / window.innerHeight
