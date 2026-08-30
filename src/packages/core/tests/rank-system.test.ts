@@ -1,49 +1,59 @@
 import { describe, it, expect } from 'vitest'
 import { RankSystem } from '../../../systems/RankSystem'
 
-describe('RankSystem Multi-Category Rank Architecture', () => {
+describe('RankSystem Multi-Category Rank Architecture (D to S+)', () => {
   describe('Time Rank Thresholds', () => {
-    it('computes S rank for time < 3:30 (210s)', () => {
-      expect(RankSystem.computeTimeRank(209)).toBe('S')
-      expect(RankSystem.computeTimeRank(180)).toBe('S')
+    it('computes S rank for time < 3:15 (195s)', () => {
+      expect(RankSystem.computeTimeRank(194)).toBe('S')
+      expect(RankSystem.computeTimeRank(150)).toBe('S')
       expect(RankSystem.computeTimeRank(0)).toBe('S')
     })
 
-    it('computes A rank for time < 4:15 (255s) and >= 3:30', () => {
-      expect(RankSystem.computeTimeRank(210)).toBe('A')
-      expect(RankSystem.computeTimeRank(254)).toBe('A')
+    it('computes A rank for time < 4:00 (240s) and >= 3:15', () => {
+      expect(RankSystem.computeTimeRank(195)).toBe('A')
+      expect(RankSystem.computeTimeRank(239)).toBe('A')
     })
 
-    it('computes B rank for time < 5:30 (330s) and >= 4:15', () => {
-      expect(RankSystem.computeTimeRank(255)).toBe('B')
-      expect(RankSystem.computeTimeRank(329)).toBe('B')
+    it('computes B rank for time < 5:00 (300s) and >= 4:00', () => {
+      expect(RankSystem.computeTimeRank(240)).toBe('B')
+      expect(RankSystem.computeTimeRank(299)).toBe('B')
     })
 
-    it('computes C rank for time >= 5:30 (330s)', () => {
-      expect(RankSystem.computeTimeRank(330)).toBe('C')
-      expect(RankSystem.computeTimeRank(400)).toBe('C')
+    it('computes C rank for time < 6:30 (390s) and >= 5:00', () => {
+      expect(RankSystem.computeTimeRank(300)).toBe('C')
+      expect(RankSystem.computeTimeRank(389)).toBe('C')
+    })
+
+    it('computes D rank for time >= 6:30 (390s)', () => {
+      expect(RankSystem.computeTimeRank(390)).toBe('D')
+      expect(RankSystem.computeTimeRank(500)).toBe('D')
     })
   })
 
   describe('Kills Rank Thresholds', () => {
-    it('computes S rank for >= 40 kills', () => {
-      expect(RankSystem.computeKillsRank(40)).toBe('S')
+    it('computes S rank for >= 45 kills', () => {
+      expect(RankSystem.computeKillsRank(45)).toBe('S')
       expect(RankSystem.computeKillsRank(65)).toBe('S')
     })
 
-    it('computes A rank for >= 25 kills and < 40', () => {
-      expect(RankSystem.computeKillsRank(25)).toBe('A')
-      expect(RankSystem.computeKillsRank(39)).toBe('A')
+    it('computes A rank for >= 30 kills and < 45', () => {
+      expect(RankSystem.computeKillsRank(30)).toBe('A')
+      expect(RankSystem.computeKillsRank(44)).toBe('A')
     })
 
-    it('computes B rank for >= 15 kills and < 25', () => {
-      expect(RankSystem.computeKillsRank(15)).toBe('B')
-      expect(RankSystem.computeKillsRank(24)).toBe('B')
+    it('computes B rank for >= 18 kills and < 30', () => {
+      expect(RankSystem.computeKillsRank(18)).toBe('B')
+      expect(RankSystem.computeKillsRank(29)).toBe('B')
     })
 
-    it('computes C rank for < 15 kills', () => {
-      expect(RankSystem.computeKillsRank(14)).toBe('C')
-      expect(RankSystem.computeKillsRank(0)).toBe('C')
+    it('computes C rank for >= 8 kills and < 18', () => {
+      expect(RankSystem.computeKillsRank(8)).toBe('C')
+      expect(RankSystem.computeKillsRank(17)).toBe('C')
+    })
+
+    it('computes D rank for < 8 kills', () => {
+      expect(RankSystem.computeKillsRank(7)).toBe('D')
+      expect(RankSystem.computeKillsRank(0)).toBe('D')
     })
   })
 
@@ -56,12 +66,16 @@ describe('RankSystem Multi-Category Rank Architecture', () => {
       expect(RankSystem.computeBossMasteryRank(true, true, true, true)).toBe('A')
     })
 
-    it('computes B rank when boss was reached but not defeated', () => {
-      expect(RankSystem.computeBossMasteryRank(false, true, true, true)).toBe('B')
+    it('computes B rank when advanced phase reached but not defeated', () => {
+      expect(RankSystem.computeBossMasteryRank(false, true, false, true)).toBe('B')
     })
 
-    it('computes C rank when defeated before reaching the boss', () => {
-      expect(RankSystem.computeBossMasteryRank(false, false, true, false)).toBe('C')
+    it('computes C rank when boss was engaged/spawned', () => {
+      expect(RankSystem.computeBossMasteryRank(false, true, false, false)).toBe('C')
+    })
+
+    it('computes D rank when defeated before reaching the boss', () => {
+      expect(RankSystem.computeBossMasteryRank(false, false, true, false)).toBe('D')
     })
   })
 
@@ -72,31 +86,34 @@ describe('RankSystem Multi-Category Rank Architecture', () => {
 
     it('awards S for high composite performance', () => {
       expect(RankSystem.computeCompositeGrade('S', 'S', 'A')).toBe('S')
-      expect(RankSystem.computeCompositeGrade('S', 'A', 'A')).toBe('S')
+      expect(RankSystem.computeCompositeGrade('S', 'A', 'A')).toBe('A')
     })
 
     it('awards A for solid performance', () => {
       expect(RankSystem.computeCompositeGrade('A', 'A', 'A')).toBe('A')
       expect(RankSystem.computeCompositeGrade('S', 'B', 'B')).toBe('A')
-      expect(RankSystem.computeCompositeGrade('A', 'B', 'B')).toBe('A')
     })
 
     it('awards B for standard performance', () => {
       expect(RankSystem.computeCompositeGrade('B', 'B', 'B')).toBe('B')
       expect(RankSystem.computeCompositeGrade('B', 'B', 'C')).toBe('B')
-      expect(RankSystem.computeCompositeGrade('A', 'C', 'C')).toBe('B')
     })
 
     it('awards C for sub-optimal runs', () => {
       expect(RankSystem.computeCompositeGrade('C', 'C', 'C')).toBe('C')
+      expect(RankSystem.computeCompositeGrade('C', 'C', 'D')).toBe('C')
+    })
+
+    it('awards D for critical failure runs', () => {
+      expect(RankSystem.computeCompositeGrade('D', 'D', 'D')).toBe('D')
     })
   })
 
   describe('evaluate with breakdown', () => {
     it('returns full breakdown and bonus score calculations', () => {
       const score = RankSystem.evaluate({
-        rawTimeSeconds: 200,
-        kills: 45,
+        rawTimeSeconds: 180,
+        kills: 50,
         bossDefeated: true,
         bossReached: true,
         diedDuringBoss: false,

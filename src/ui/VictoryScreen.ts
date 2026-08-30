@@ -63,12 +63,19 @@ export class VictoryScreen {
           glow: '0 0 16px rgba(250, 204, 21, 0.5)',
         }
       case 'C':
+        return {
+          text: '#f97316',
+          bg: 'rgba(249, 115, 22, 0.12)',
+          border: '#f97316',
+          glow: '0 0 12px rgba(249, 115, 22, 0.4)',
+        }
+      case 'D':
       default:
         return {
-          text: '#94a3b8',
-          bg: 'rgba(148, 163, 184, 0.10)',
-          border: '#475569',
-          glow: 'none',
+          text: '#ef4444',
+          bg: 'rgba(239, 68, 68, 0.12)',
+          border: '#ef4444',
+          glow: '0 0 12px rgba(239, 68, 68, 0.4)',
         }
     }
   }
@@ -95,7 +102,9 @@ export class VictoryScreen {
         ? 'HIGH-EFFICIENCY OVERCLOCK // HARDWARE STABILIZED'
         : score.compositeGrade === 'B'
         ? 'STANDARD EXECUTION // OPERATIONAL WITHIN MARGIN'
-        : 'MARGINAL COMPLIANCE // VOLTAGE INSTABILITY'
+        : score.compositeGrade === 'C'
+        ? 'MARGINAL COMPLIANCE // VOLTAGE INSTABILITY'
+        : 'CRITICAL SYSTEM FAULT // INSUFFICIENT FREQUENCY'
 
     this.container.innerHTML = `
       <div style="text-align: center; max-width: 780px; width: 100%; padding: 28px 24px; border: 2px solid #00ff88; background: #0c121e; background-image: ${PS1_DITHER_BG}; box-shadow: 0 0 40px rgba(0, 255, 136, 0.35); clip-path: ${PS1_BEVEL_8PX}; box-sizing: border-box;">

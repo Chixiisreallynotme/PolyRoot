@@ -1,11 +1,11 @@
-// PolyRoot Multi-Category Rank Architecture & Hardware Grade Engine
-// 1. Time Rank: S (< 3:30 / 210s), A (< 4:15 / 255s), B (< 5:30 / 330s), C (>= 5:30)
-// 2. Kills Rank: S (>= 40 kills), A (>= 25 kills), B (>= 15 kills), C (< 15 kills)
-// 3. Boss Mastery: S (Defeated in Phase 3 without dying), A (Defeated), B (Boss reached), C (Defeated before boss)
-// 4. Overall Composite Hardware Grade: S+, S, A, B, C
+// PolyRoot Multi-Category Rank Architecture & Hardware Grade Engine (D to S+)
+// 1. Time Rank: S (< 3:15 / 195s), A (< 4:00 / 240s), B (< 5:00 / 300s), C (< 6:30 / 390s), D (>= 6:30)
+// 2. Kills Rank: S (>= 45 kills), A (>= 30 kills), B (>= 18 kills), C (>= 8 kills), D (< 8 kills)
+// 3. Boss Mastery: S (Defeated in Phase 3 without dying), A (Defeated), B (Boss reached Phase 2/3), C (Boss spawned), D (Defeated before boss)
+// 4. Overall Composite Hardware Grade: S+, S, A, B, C, D
 
-export type Rank = 'S' | 'A' | 'B' | 'C'
-export type CompositeGrade = 'S+' | 'S' | 'A' | 'B' | 'C'
+export type Rank = 'S' | 'A' | 'B' | 'C' | 'D'
+export type CompositeGrade = 'S+' | 'S' | 'A' | 'B' | 'C' | 'D'
 
 export interface CategoryScore {
   rank: Rank
@@ -51,33 +51,36 @@ export class RankSystem {
   private static readonly STORAGE_KEY = 'polyroot_best_score'
 
   static computeTimeRank(scoreTimeSeconds: number): Rank {
-    if (scoreTimeSeconds < 210) return 'S' // < 3:30
-    if (scoreTimeSeconds < 255) return 'A' // < 4:15
-    if (scoreTimeSeconds < 330) return 'B' // < 5:30
-    return 'C'
+    if (scoreTimeSeconds < 195) return 'S' // < 3:15
+    if (scoreTimeSeconds < 240) return 'A' // < 4:00
+    if (scoreTimeSeconds < 300) return 'B' // < 5:00
+    if (scoreTimeSeconds < 390) return 'C' // < 6:30
+    return 'D'
   }
 
   static computeKillsRank(kills: number): Rank {
-    if (kills >= 40) return 'S' // >= 40 kills
-    if (kills >= 25) return 'A' // >= 25 kills
-    if (kills >= 15) return 'B' // >= 15 kills
-    return 'C'
+    if (kills >= 45) return 'S' // >= 45 kills
+    if (kills >= 30) return 'A' // >= 30 kills
+    if (kills >= 18) return 'B' // >= 18 kills
+    if (kills >= 8) return 'C'  // >= 8 kills
+    return 'D'
   }
 
   static computeBossMasteryRank(
     bossDefeated: boolean,
     bossReached: boolean,
     diedDuringBoss = false,
-    _phase3Reached = true
+    phase3Reached = true
   ): Rank {
     if (bossDefeated && !diedDuringBoss) return 'S' // Defeated in Phase 3 without dying
-    if (bossDefeated) return 'A' // Defeated
-    if (bossReached) return 'B' // Boss reached
-    return 'C' // Defeated before boss
+    if (bossDefeated) return 'A'                   // Defeated
+    if (bossReached && phase3Reached) return 'B'   // Reached advanced boss phase
+    if (bossReached) return 'C'                    // Reached boss
+    return 'D'                                     // Defeated before boss
   }
 
   static computeCompositeGrade(timeRank: Rank, killsRank: Rank, bossRank: Rank): CompositeGrade {
-    // S+ for flawless Triple-S overclock performance across all 3 disciplines
+    // S+ for flawless Triple-S performance across all 3 disciplines
     if (timeRank === 'S' && killsRank === 'S' && bossRank === 'S') {
       return 'S+'
     }
@@ -88,14 +91,16 @@ export class RankSystem {
         case 'A': return 3
         case 'B': return 2
         case 'C': return 1
+        case 'D': return 0
       }
     }
 
     const total = rankToScore(timeRank) + rankToScore(killsRank) + rankToScore(bossRank)
-    if (total >= 10) return 'S' // e.g. S+S+A (11), S+A+A (10)
-    if (total >= 7) return 'A'  // e.g. A+A+A (9), S+B+B (8), A+A+B (8), A+B+B (7)
-    if (total >= 4) return 'B'  // e.g. B+B+B (6), B+B+C (5), B+C+C (4)
-    return 'C'                  // C+C+C (3)
+    if (total >= 11) return 'S' // e.g. S+S+A (11), S+A+A (10)
+    if (total >= 8) return 'A'  // e.g. A+A+B (8), S+B+B (8), A+A+A (9)
+    if (total >= 5) return 'B'  // e.g. B+B+C (5), B+B+B (6)
+    if (total >= 2) return 'C'  // e.g. C+C+D (2), C+C+C (3)
+    return 'D'                  // < 2 (D+D+D, D+D+C)
   }
 
   static formatTime(seconds: number): string {
@@ -104,7 +109,6 @@ export class RankSystem {
     return `${mins.toString().padStart(2, '0')}:${secs.toString().padStart(2, '0')}`
   }
 
-  // Backward-compatible evaluate helper:
   static computeRank(scoreTimeSeconds: number): Rank {
     return this.computeTimeRank(scoreTimeSeconds)
   }
@@ -140,7 +144,6 @@ export class RankSystem {
       phase3Reached = phase3ReachedArg
     }
 
-    // ScoreTemps = tempsBrut - kills*0.05s
     const scoreTimeSeconds = Math.max(0, rawTimeSeconds - kills * 0.05)
 
     const timeRank = this.computeTimeRank(scoreTimeSeconds)
@@ -155,7 +158,7 @@ export class RankSystem {
         if (stored) bestTime = parseFloat(stored)
       }
     } catch {
-      // storage disabled in some envs
+      // storage disabled
     }
 
     let isNewBest = false
@@ -167,37 +170,41 @@ export class RankSystem {
           localStorage.setItem(this.STORAGE_KEY, scoreTimeSeconds.toFixed(2))
         }
       } catch {
-        // storage disabled in some envs
+        // storage disabled
       }
     }
 
-    // Near-miss calculations
+    // Near-miss casino calculations
     let nearMissMessage: string | null = null
-    if (scoreTimeSeconds > 210 && scoreTimeSeconds <= 220) {
-      const diff = Math.ceil(scoreTimeSeconds - 210)
-      nearMissMessage = `à ${diff}s du rang S Chrono (< 3:30) !`
-    } else if (kills >= 37 && kills < 40) {
-      const diff = 40 - kills
-      nearMissMessage = `à ${diff} neutralisation${diff > 1 ? 's' : ''} du rang S (40 kills) !`
+    if (scoreTimeSeconds > 195 && scoreTimeSeconds <= 205) {
+      const diff = Math.ceil(scoreTimeSeconds - 195)
+      nearMissMessage = `à ${diff}s du rang S Chrono (< 3:15) !`
+    } else if (kills >= 42 && kills < 45) {
+      const diff = 45 - kills
+      nearMissMessage = `à ${diff} neutralisation${diff > 1 ? 's' : ''} du rang S (45 kills) !`
     }
 
     const timeDescription =
       timeRank === 'S'
-        ? 'Vitesse maximale optimale'
+        ? 'Vitesse maximale optimale (< 3:15)'
         : timeRank === 'A'
-        ? 'Excellente cadence d\'overclock'
+        ? 'Excellente cadence d\'overclock (< 4:00)'
         : timeRank === 'B'
-        ? 'Temps de cycle standard'
-        : 'Surchauffe / Cycle prolongé'
+        ? 'Temps de cycle standard (< 5:00)'
+        : timeRank === 'C'
+        ? 'Cycle prolongé (< 6:30)'
+        : 'Surchauffe critique / Temps dépassé'
 
     const killsDescription =
       killsRank === 'S'
-        ? 'Purge totale de la mémoire'
+        ? 'Purge totale de la mémoire (>= 45 kills)'
         : killsRank === 'A'
-        ? 'Neutralisation massive du réseau'
+        ? 'Neutralisation massive (>= 30 kills)'
         : killsRank === 'B'
-        ? 'Nettoyage intermédiaire'
-        : 'Nettoyage minimal des registres'
+        ? 'Nettoyage intermédiaire (>= 18 kills)'
+        : killsRank === 'C'
+        ? 'Nettoyage minimal (>= 8 kills)'
+        : 'Activité ennemie résiduelle élevée'
 
     const bossDescription =
       bossRank === 'S'
@@ -205,7 +212,9 @@ export class RankSystem {
         : bossRank === 'A'
         ? 'CyberLeek vaincu avec succès'
         : bossRank === 'B'
-        ? 'Boss CyberLeek atteint'
+        ? 'Phases avancées du boss atteintes'
+        : bossRank === 'C'
+        ? 'Boss CyberLeek engagé'
         : 'Échec avant l\'engagement du boss'
 
     return {
@@ -223,21 +232,21 @@ export class RankSystem {
           label: 'TEMPS CHRONO',
           detail: this.formatTime(scoreTimeSeconds),
           description: timeDescription,
-          threshold: 'S < 3:30 | A < 4:15 | B < 5:30',
+          threshold: 'S < 3:15 | A < 4:00 | B < 5:00 | C < 6:30 | D >= 6:30',
         },
         kills: {
           rank: killsRank,
           label: 'NEUTRALISATIONS',
           detail: `${kills} KILLS`,
           description: killsDescription,
-          threshold: 'S >= 40 | A >= 25 | B >= 15',
+          threshold: 'S >= 45 | A >= 30 | B >= 18 | C >= 8 | D < 8',
         },
         boss: {
           rank: bossRank,
           label: 'MAÎTRISE BOSS',
           detail: bossDefeated ? (diedDuringBoss ? 'VAINCU' : 'SANS DÉGÂTS') : bossReached ? 'ENGAGÉ' : 'NON ATTEINT',
           description: bossDescription,
-          threshold: 'S: Phase 3 sans mourir | A: Vaincu | B: Atteint',
+          threshold: 'S: Phase 3 sans mourir | A: Vaincu | B: Phase 2/3 | C: Engagé | D: Échec',
         },
       },
       isNewBest,
@@ -261,4 +270,3 @@ export class RankSystem {
     }
   }
 }
-
