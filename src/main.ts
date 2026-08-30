@@ -56,22 +56,22 @@ class Game {
     const app = document.getElementById('app') || document.body
     app.appendChild(this.renderer.domElement)
 
-    // 2. Scene & Bright Illuminated PS1 Environment (Zero Dark Gloom)
+    // 2. Scene & Bright Illuminated PS1 Industrial Environment (Gray Enclosure + Rich Green PCB)
     this.scene = new THREE.Scene()
-    this.scene.background = new THREE.Color(0x1a2638)
-    this.scene.fog = new THREE.FogExp2(0x1a2638, 0.007)
+    this.scene.background = new THREE.Color(0x718096)
+    this.scene.fog = new THREE.FogExp2(0x718096, 0.005)
 
     // 3. 3D Camera Setup
     this.camera = new THREE.PerspectiveCamera(46, 960 / 720, 0.1, 120)
     this.camera.position.set(24, 16, 32)
     this.camera.lookAt(24, 0, 18)
 
-    // 4. Bright Lighting Rig
-    const ambientLight = new THREE.AmbientLight(0xffffff, 1.5)
+    // 4. Bright Studio Lighting Rig
+    const ambientLight = new THREE.AmbientLight(0xffffff, 1.8)
     this.scene.add(ambientLight)
 
-    const sun = new THREE.DirectionalLight(0xfffaee, 2.2)
-    sun.position.set(20, 34, 26)
+    const sun = new THREE.DirectionalLight(0xfffdfa, 2.4)
+    sun.position.set(20, 36, 28)
     sun.castShadow = true
     sun.shadow.mapSize.width = 2048
     sun.shadow.mapSize.height = 2048

@@ -2,10 +2,22 @@ import * as THREE from 'three'
 import * as BufferGeometryUtils from 'three/examples/jsm/utils/BufferGeometryUtils.js'
 import { computeBoundsTree, disposeBoundsTree, acceleratedRaycast } from 'three-mesh-bvh'
 import { CryptoType, CryptoInstance, CRYPTO_DEFS } from '../entities/Crypto'
+import { CryptoTextureGenerator } from '../entities/CryptoTextureGenerator'
 
 THREE.BufferGeometry.prototype.computeBoundsTree = computeBoundsTree
 THREE.BufferGeometry.prototype.disposeBoundsTree = disposeBoundsTree
 THREE.Mesh.prototype.raycast = acceleratedRaycast
+
+function setSolidUVs(geo: THREE.BufferGeometry, u: number, v: number): THREE.BufferGeometry {
+  const uvAttr = geo.attributes.uv
+  if (uvAttr) {
+    for (let i = 0; i < uvAttr.count; i++) {
+      uvAttr.setXY(i, u, v)
+    }
+    uvAttr.needsUpdate = true
+  }
+  return geo
+}
 
 export class SpawnSystem {
   public instances: CryptoInstance[] = []
@@ -22,27 +34,30 @@ export class SpawnSystem {
   private spawnInterval = 1.4
 
   constructor(scene: THREE.Scene) {
-    // 1. BTC Full Character Compound (Coin + 3D ₿ Logo + Eyes + Boxing Gloves + Trotting Boots)
+    // 1. BTC Full Character Compound & Material (with high-contrast texture face)
     const btcGeo = this.createBtcFullCharacterGeometry()
+    const btcTex = CryptoTextureGenerator.createBtcTexture()
     const btcMat = new THREE.MeshLambertMaterial({
-      color: 0xff9900,
-      emissive: 0x331a00,
+      map: btcTex,
+      color: 0xffffff,
       flatShading: true,
     })
 
-    // 2. DOGE Full Character Compound (Coin + Shiba Ears + 3D Ð + Paws)
+    // 2. DOGE Full Character Compound & Material
     const dogeGeo = this.createDogeFullCharacterGeometry()
+    const dogeTex = CryptoTextureGenerator.createDogeTexture()
     const dogeMat = new THREE.MeshLambertMaterial({
-      color: 0xffd700,
-      emissive: 0x332b00,
+      map: dogeTex,
+      color: 0xffffff,
       flatShading: true,
     })
 
-    // 3. PEPE Full Character Compound (Coin + Frog Eyes + Frog Smile + Spring Legs + Plasma Arms)
+    // 3. PEPE Full Character Compound & Material (Hands properly positioned at chest level)
     const pepeGeo = this.createPepeFullCharacterGeometry()
+    const pepeTex = CryptoTextureGenerator.createPepeTexture()
     const pepeMat = new THREE.MeshLambertMaterial({
-      color: 0x00ff66,
-      emissive: 0x003311,
+      map: pepeTex,
+      color: 0xffffff,
       flatShading: true,
     })
 
@@ -75,7 +90,6 @@ export class SpawnSystem {
       this.projectiles.push({ x: 0, z: 0, vx: 0, vz: 0, active: false, life: 0 })
     }
 
-    // Hide instances initially
     this.dummy.position.set(0, -999, 0)
     this.dummy.updateMatrix()
     for (let i = 0; i < this.maxTotalEnemies; i++) {
@@ -93,50 +107,37 @@ export class SpawnSystem {
   private createBtcFullCharacterGeometry(): THREE.BufferGeometry {
     const parts: THREE.BufferGeometry[] = []
 
-    // 1. Coin Body
-    const coin = new THREE.CylinderGeometry(0.9, 0.9, 0.35, 12)
+    // 1. Main Coin Body with Textured UV Face
+    const coin = new THREE.CylinderGeometry(0.9, 0.9, 0.35, 16)
     coin.rotateX(Math.PI / 2)
     coin.translate(0, 1.2, 0)
     parts.push(coin)
 
-    // 2. Embossed 3D ₿ Symbol on front
-    const bar1 = new THREE.BoxGeometry(0.12, 1.1, 0.1)
-    bar1.translate(-0.15, 1.2, 0.22)
-    const bar2 = new THREE.BoxGeometry(0.12, 1.1, 0.1)
-    bar2.translate(0.05, 1.2, 0.22)
-    const loop1 = new THREE.TorusGeometry(0.24, 0.08, 6, 8, Math.PI)
-    loop1.rotateY(-Math.PI / 2)
-    loop1.translate(0.05, 1.4, 0.22)
-    const loop2 = new THREE.TorusGeometry(0.28, 0.08, 6, 8, Math.PI)
-    loop2.rotateY(-Math.PI / 2)
-    loop2.translate(0.05, 1.0, 0.22)
-    parts.push(bar1, bar2, loop1, loop2)
-
-    // 3. Two Rubber-Hose Legs
-    const legL = new THREE.CylinderGeometry(0.1, 0.1, 0.6, 6)
+    // 2. Two Rubber-Hose Legs (mapped to orange UV (0.04, 0.95))
+    const legL = setSolidUVs(new THREE.CylinderGeometry(0.1, 0.1, 0.6, 6), 0.04, 0.95)
     legL.translate(-0.35, 0.5, 0)
-    const legR = new THREE.CylinderGeometry(0.1, 0.1, 0.6, 6)
+    const legR = setSolidUVs(new THREE.CylinderGeometry(0.1, 0.1, 0.6, 6), 0.04, 0.95)
     legR.translate(0.35, 0.5, 0)
     parts.push(legL, legR)
 
-    // 4. Two Big Cartoon Boots
-    const bootL = new THREE.BoxGeometry(0.35, 0.3, 0.55)
+    // 3. Two Big Cartoon Boots (mapped to dark navy UV (0.95, 0.04))
+    const bootL = setSolidUVs(new THREE.BoxGeometry(0.38, 0.3, 0.58), 0.95, 0.04)
     bootL.translate(-0.35, 0.15, 0.1)
-    const bootR = new THREE.BoxGeometry(0.35, 0.3, 0.55)
+    const bootR = setSolidUVs(new THREE.BoxGeometry(0.38, 0.3, 0.58), 0.95, 0.04)
     bootR.translate(0.35, 0.15, 0.1)
     parts.push(bootL, bootR)
 
-    // 5. Two Boxing Arms with Big Gloves
-    const armL = new THREE.CylinderGeometry(0.09, 0.09, 0.7, 6)
+    // 4. Boxing Arms & Big White Boxing Gloves (mapped to white UV (0.04, 0.04))
+    const armL = setSolidUVs(new THREE.CylinderGeometry(0.09, 0.09, 0.65, 6), 0.04, 0.95)
     armL.rotateZ(Math.PI / 3)
-    armL.translate(-0.85, 1.1, 0.2)
-    const armR = new THREE.CylinderGeometry(0.09, 0.09, 0.7, 6)
+    armL.translate(-0.9, 1.05, 0.15)
+    const armR = setSolidUVs(new THREE.CylinderGeometry(0.09, 0.09, 0.65, 6), 0.04, 0.95)
     armR.rotateZ(-Math.PI / 3)
-    armR.translate(0.85, 1.1, 0.2)
-    const gloveL = new THREE.SphereGeometry(0.28, 8, 8)
-    gloveL.translate(-1.15, 1.3, 0.4)
-    const gloveR = new THREE.SphereGeometry(0.28, 8, 8)
-    gloveR.translate(1.15, 1.3, 0.4)
+    armR.translate(0.9, 1.05, 0.15)
+    const gloveL = setSolidUVs(new THREE.SphereGeometry(0.32, 8, 8), 0.04, 0.04)
+    gloveL.translate(-1.2, 1.15, 0.45)
+    const gloveR = setSolidUVs(new THREE.SphereGeometry(0.32, 8, 8), 0.04, 0.04)
+    gloveR.translate(1.2, 1.15, 0.45)
     parts.push(armL, armR, gloveL, gloveR)
 
     const merged = BufferGeometryUtils.mergeGeometries(parts)
@@ -146,47 +147,37 @@ export class SpawnSystem {
   private createDogeFullCharacterGeometry(): THREE.BufferGeometry {
     const parts: THREE.BufferGeometry[] = []
 
-    // 1. Coin Body
-    const coin = new THREE.CylinderGeometry(0.75, 0.75, 0.3, 12)
+    // 1. Main Coin Body
+    const coin = new THREE.CylinderGeometry(0.75, 0.75, 0.3, 16)
     coin.rotateX(Math.PI / 2)
     coin.translate(0, 1.0, 0)
     parts.push(coin)
 
-    // 2. Shiba Inu Triangular Ears on Top
-    const earL = new THREE.ConeGeometry(0.25, 0.55, 4)
-    earL.rotateZ(0.3)
-    earL.translate(-0.45, 1.8, 0)
-    const earR = new THREE.ConeGeometry(0.25, 0.55, 4)
-    earR.rotateZ(-0.3)
-    earR.translate(0.45, 1.8, 0)
+    // 2. Shiba Inu Triangular Ears on Top (mapped to yellow UV (0.04, 0.95))
+    const earL = setSolidUVs(new THREE.ConeGeometry(0.28, 0.55, 4), 0.04, 0.95)
+    earL.rotateZ(0.35)
+    earL.translate(-0.48, 1.8, 0)
+    const earR = setSolidUVs(new THREE.ConeGeometry(0.28, 0.55, 4), 0.04, 0.95)
+    earR.rotateZ(-0.35)
+    earR.translate(0.48, 1.8, 0)
     parts.push(earL, earR)
 
-    // 3. 3D Ð Symbol on front
-    const bar = new THREE.BoxGeometry(0.12, 0.9, 0.1)
-    bar.translate(-0.15, 1.0, 0.2)
-    const crossBar = new THREE.BoxGeometry(0.45, 0.1, 0.1)
-    crossBar.translate(-0.15, 1.0, 0.2)
-    const dLoop = new THREE.TorusGeometry(0.35, 0.08, 6, 8, Math.PI)
-    dLoop.rotateY(-Math.PI / 2)
-    dLoop.translate(-0.1, 1.0, 0.2)
-    parts.push(bar, crossBar, dLoop)
-
-    // 4. Legs & Paws
-    const legL = new THREE.CylinderGeometry(0.09, 0.09, 0.5, 6)
+    // 3. Legs & Paws (mapped to dark brown UV (0.95, 0.04) and white (0.04, 0.04))
+    const legL = setSolidUVs(new THREE.CylinderGeometry(0.09, 0.09, 0.5, 6), 0.04, 0.95)
     legL.translate(-0.3, 0.45, 0)
-    const legR = new THREE.CylinderGeometry(0.09, 0.09, 0.5, 6)
+    const legR = setSolidUVs(new THREE.CylinderGeometry(0.09, 0.09, 0.5, 6), 0.04, 0.95)
     legR.translate(0.3, 0.45, 0)
-    const pawL = new THREE.SphereGeometry(0.2, 6, 6)
+    const pawL = setSolidUVs(new THREE.SphereGeometry(0.22, 6, 6), 0.04, 0.04)
     pawL.translate(-0.3, 0.15, 0.1)
-    const pawR = new THREE.SphereGeometry(0.2, 6, 6)
+    const pawR = setSolidUVs(new THREE.SphereGeometry(0.22, 6, 6), 0.04, 0.04)
     pawR.translate(0.3, 0.15, 0.1)
     parts.push(legL, legR, pawL, pawR)
 
-    // 5. Front Paws / Arms
-    const armL = new THREE.SphereGeometry(0.2, 6, 6)
-    armL.translate(-0.75, 0.9, 0.25)
-    const armR = new THREE.SphereGeometry(0.2, 6, 6)
-    armR.translate(0.75, 0.9, 0.25)
+    // 4. Front Boxing Paws (White gloves)
+    const armL = setSolidUVs(new THREE.SphereGeometry(0.25, 6, 6), 0.04, 0.04)
+    armL.translate(-0.8, 0.9, 0.35)
+    const armR = setSolidUVs(new THREE.SphereGeometry(0.25, 6, 6), 0.04, 0.04)
+    armR.translate(0.8, 0.9, 0.35)
     parts.push(armL, armR)
 
     const merged = BufferGeometryUtils.mergeGeometries(parts)
@@ -196,43 +187,42 @@ export class SpawnSystem {
   private createPepeFullCharacterGeometry(): THREE.BufferGeometry {
     const parts: THREE.BufferGeometry[] = []
 
-    // 1. Coin Body
-    const coin = new THREE.CylinderGeometry(0.8, 0.8, 0.3, 10)
+    // 1. Main Frog Coin Body
+    const coin = new THREE.CylinderGeometry(0.8, 0.8, 0.3, 16)
     coin.rotateX(Math.PI / 2)
-    coin.translate(0, 1.1, 0)
+    coin.translate(0, 1.0, 0)
     parts.push(coin)
 
-    // 2. Large Bulging Frog Eyeballs on Top
-    const eyeL = new THREE.SphereGeometry(0.32, 8, 8)
-    eyeL.translate(-0.4, 1.9, 0.1)
-    const eyeR = new THREE.SphereGeometry(0.32, 8, 8)
-    eyeR.translate(0.4, 1.9, 0.1)
+    // 2. Large Bulging Frog Eyeballs on Top (mapped to white UV (0.04, 0.04))
+    const eyeL = setSolidUVs(new THREE.SphereGeometry(0.32, 8, 8), 0.04, 0.04)
+    eyeL.translate(-0.42, 1.85, 0.05)
+    const eyeR = setSolidUVs(new THREE.SphereGeometry(0.32, 8, 8), 0.04, 0.04)
+    eyeR.translate(0.42, 1.85, 0.05)
     parts.push(eyeL, eyeR)
 
-    // 3. Frog Lips Smile
-    const mouth = new THREE.BoxGeometry(0.8, 0.15, 0.2)
-    mouth.translate(0, 0.9, 0.2)
-    parts.push(mouth)
-
-    // 4. Spring Legs & Webbed Feet
-    const legL = new THREE.CylinderGeometry(0.08, 0.08, 0.6, 6)
-    legL.translate(-0.35, 0.5, 0)
-    const legR = new THREE.CylinderGeometry(0.08, 0.08, 0.6, 6)
-    legR.translate(0.35, 0.5, 0)
-    const footL = new THREE.BoxGeometry(0.4, 0.1, 0.45)
+    // 3. Spring Legs & Webbed Feet (mapped to dark green (0.95, 0.04))
+    const legL = setSolidUVs(new THREE.CylinderGeometry(0.08, 0.08, 0.55, 6), 0.04, 0.95)
+    legL.translate(-0.35, 0.45, 0)
+    const legR = setSolidUVs(new THREE.CylinderGeometry(0.08, 0.08, 0.55, 6), 0.04, 0.95)
+    legR.translate(0.35, 0.45, 0)
+    const footL = setSolidUVs(new THREE.BoxGeometry(0.42, 0.12, 0.48), 0.95, 0.04)
     footL.translate(-0.35, 0.1, 0.15)
-    const footR = new THREE.BoxGeometry(0.4, 0.1, 0.45)
+    const footR = setSolidUVs(new THREE.BoxGeometry(0.42, 0.12, 0.48), 0.95, 0.04)
     footR.translate(0.35, 0.1, 0.15)
     parts.push(legL, legR, footL, footR)
 
-    // 5. Raised Frog Arms (Aiming pose)
-    const armL = new THREE.CylinderGeometry(0.08, 0.08, 0.6, 6)
-    armL.rotateX(-Math.PI / 4)
-    armL.translate(-0.8, 1.1, 0.25)
-    const armR = new THREE.CylinderGeometry(0.08, 0.08, 0.6, 6)
-    armR.rotateX(-Math.PI / 4)
-    armR.translate(0.8, 1.1, 0.25)
-    parts.push(armL, armR)
+    // 4. Arms & White Boxing Gloves — FIXED POSITION at chest/waist level (NOT in the head!)
+    const armL = setSolidUVs(new THREE.CylinderGeometry(0.08, 0.08, 0.55, 6), 0.04, 0.95)
+    armL.rotateZ(Math.PI / 3)
+    armL.translate(-0.8, 0.75, 0.2)
+    const armR = setSolidUVs(new THREE.CylinderGeometry(0.08, 0.08, 0.55, 6), 0.04, 0.95)
+    armR.rotateZ(-Math.PI / 3)
+    armR.translate(0.8, 0.75, 0.2)
+    const gloveL = setSolidUVs(new THREE.SphereGeometry(0.28, 8, 8), 0.04, 0.04)
+    gloveL.translate(-1.1, 0.85, 0.45)
+    const gloveR = setSolidUVs(new THREE.SphereGeometry(0.28, 8, 8), 0.04, 0.04)
+    gloveR.translate(1.1, 0.85, 0.45)
+    parts.push(armL, armR, gloveL, gloveR)
 
     const merged = BufferGeometryUtils.mergeGeometries(parts)
     return merged || new THREE.BoxGeometry(1, 1, 1)
@@ -313,7 +303,7 @@ export class SpawnSystem {
     }
 
     this.updateProjectiles(dt)
-    this.renderInstances()
+    this.renderInstances(playerX, playerZ)
   }
 
   private spawnRandomEnemy(playerX: number, playerZ: number, pucesHeated: number): void {
@@ -406,7 +396,7 @@ export class SpawnSystem {
     return this.projectiles.filter((p) => p.active).map((p) => ({ x: p.x, z: p.z, radius: 0.4 }))
   }
 
-  private renderInstances(): void {
+  private renderInstances(playerX = 24, playerZ = 18): void {
     const counts: Record<CryptoType, number> = { btc: 0, doge: 0, pepe: 0 }
 
     for (const inst of this.instances) {
@@ -418,12 +408,25 @@ export class SpawnSystem {
       const index = counts[inst.type]++
       if (index >= this.maxTotalEnemies) continue
 
+      const dx = playerX - inst.x
+      const dz = playerZ - inst.z
+      const dist = Math.sqrt(dx * dx + dz * dz)
+      const isAttacking = dist < 3.8
+
+      // Trot Bounce & Squash
       const trotBounce = Math.abs(Math.sin(inst.animTime)) * 0.22
       const trotSquash = 1.0 + Math.sin(inst.animTime * 2) * 0.12
 
-      this.dummy.position.set(inst.x, trotBounce, inst.z)
+      // Boxing Combo Attack Surge (Rapid 1-2 punch combo when close)
+      const punchOffset = isAttacking ? Math.sin(inst.animTime * 2.2) * 0.35 : 0
+
+      this.dummy.position.set(
+        inst.x + Math.sin(inst.rotationY) * punchOffset,
+        trotBounce,
+        inst.z + Math.cos(inst.rotationY) * punchOffset
+      )
       this.dummy.rotation.y = inst.rotationY
-      this.dummy.rotation.z = Math.sin(inst.animTime) * 0.15
+      this.dummy.rotation.z = Math.sin(inst.animTime) * (isAttacking ? 0.25 : 0.15)
       this.dummy.scale.set(1.0 / trotSquash, trotSquash, 1.0 / trotSquash)
       this.dummy.updateMatrix()
 
