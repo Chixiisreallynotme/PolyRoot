@@ -25,15 +25,19 @@ export default defineConfig({
         },
       ],
     }),
-    electron({
-      main: {
-        entry: 'electron/main.ts',
-      },
-      preload: {
-        input: 'electron/preload.ts',
-      },
-      renderer: {},
-    }),
+    ...(!(process.env.NO_ELECTRON === 'true' || process.env.VITE_WEB === 'true')
+      ? [
+          electron({
+            main: {
+              entry: 'electron/main.ts',
+            },
+            preload: {
+              input: 'electron/preload.ts',
+            },
+            renderer: {},
+          }),
+        ]
+      : []),
   ],
   resolve: {
     alias: {

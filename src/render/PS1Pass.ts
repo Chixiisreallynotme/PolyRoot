@@ -44,6 +44,24 @@ export class PS1Pass {
     this.camera = new THREE.OrthographicCamera(-1, 1, 1, -1, 0, 1)
   }
 
+  triggerDamageGlitch(): void {
+    const m = this.quad.material as THREE.ShaderMaterial
+    if (m.uniforms['uGlitch']) m.uniforms['uGlitch'].value = 0.8
+    setTimeout(() => {
+      if (m.uniforms['uGlitch']) m.uniforms['uGlitch'].value = 0.0
+    }, 90)
+  }
+
+  triggerExplosionShake(): void {
+    const m = this.quad.material as THREE.ShaderMaterial
+    if (m.uniforms['uTrauma']) m.uniforms['uTrauma'].value = 0.8
+    if (m.uniforms['uGlitch']) m.uniforms['uGlitch'].value = 0.5
+    setTimeout(() => {
+      if (m.uniforms['uGlitch']) m.uniforms['uGlitch'].value = 0.0
+      if (m.uniforms['uTrauma']) m.uniforms['uTrauma'].value = 0.0
+    }, 180)
+  }
+
   // triggerGlitch for A3: trauma 0.4+ 1 frame uGlitch 1.0 → 0.0
   triggerGlitch(line = '// HeatingSystem.ts:42 freeze=true // SpatialGrid 8x8 277k→68 checks'): void {
     const m = this.quad.material as THREE.ShaderMaterial

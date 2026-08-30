@@ -2,7 +2,7 @@ import * as THREE from 'three'
 import { Root } from './Root'
 
 // via threejs-fundamentals: antialias false — via threejs-materials: MeshLambert flatShading
-// Player entity with ZQSD/WASD, mouse aim, Dash space 2s CD, Aura and auto-shoot
+// Player entity with 1930s Rubber-Hose animation, ZQSD movement, Space Dash, Aura & Auto-Shoot
 
 export interface PlayerStats {
   hp: number
@@ -29,48 +29,47 @@ export class Player {
   public readonly auraMesh: THREE.Mesh
   public stats: PlayerStats
 
-  private moveDir = new THREE.Vector2()
   private keys: Record<string, boolean> = {}
-  private mouseWorldPos = new THREE.Vector3()
+  private velocity = { x: 0, z: 0 }
 
-  constructor(scene: THREE.Scene, startX = 15, startZ = 10) {
+  constructor(scene: THREE.Scene, startX = 18, startZ = 12) {
     this.root = new Root()
     this.group = new THREE.Group()
-    this.group.position.set(startX, 0.55, startZ)
+    this.group.position.set(startX, 0, startZ)
     this.group.add(this.root.group)
     scene.add(this.group)
 
     this.stats = {
       hp: 3,
       maxHp: 3,
-      baseSpeed: 5.5,
+      baseSpeed: 6.2,
       speedMult: 1.0,
-      dashCooldown: 2.0,
+      dashCooldown: 1.8,
       dashTimer: 0,
       isDashing: false,
       dashDuration: 0,
       iFrames: 0,
-      auraRadius: 1.2,
+      auraRadius: 1.4,
       auraPower: 1.0,
-      shootRate: 0.45,
+      shootRate: 0.40,
       shootTimer: 0,
       shootDamage: 1.0,
       pucesHeated: 0,
       kills: 0,
     }
 
-    // Aura ring visual — MeshLambert flatShading additive
-    const auraGeo = new THREE.RingGeometry(0.9, 1.2, 16)
+    // Glowing Neon Aura Ring on ground
+    const auraGeo = new THREE.RingGeometry(1.0, 1.4, 32)
     auraGeo.rotateX(-Math.PI / 2)
     const auraMat = new THREE.MeshBasicMaterial({
-      color: 0xaaff00,
+      color: 0x33ff88,
       transparent: true,
-      opacity: 0.4,
+      opacity: 0.5,
       side: THREE.DoubleSide,
       depthWrite: false,
     })
     this.auraMesh = new THREE.Mesh(auraGeo, auraMat)
-    this.auraMesh.position.y = 0.05
+    this.auraMesh.position.y = 0.04
     this.group.add(this.auraMesh)
 
     this.setupControls()
@@ -90,8 +89,9 @@ export class Player {
 
   private triggerDash(): void {
     this.stats.isDashing = true
-    this.stats.dashDuration = 0.18
+    this.stats.dashDuration = 0.22
     this.stats.dashTimer = this.stats.dashCooldown
+    this.root.rig.triggerImpactSquash(0.4)
     console.log('[juice] Dash triggered — trauma 0.4 heavy 120ms')
   }
 
@@ -99,7 +99,7 @@ export class Player {
     if (this.stats.dashTimer > 0) this.stats.dashTimer -= dt
     if (this.stats.iFrames > 0) {
       this.stats.iFrames -= dt
-      this.root.group.visible = Math.floor(this.stats.iFrames * 10) % 2 === 0
+      this.root.group.visible = Math.floor(this.stats.iFrames * 12) % 2 === 0
     } else {
       this.root.group.visible = true
     }
@@ -124,34 +124,42 @@ export class Player {
 
     if (this.stats.isDashing) {
       this.stats.dashDuration -= dt
-      currentSpeed *= 3.0
+      currentSpeed *= 3.2
       if (this.stats.dashDuration <= 0) {
         this.stats.isDashing = false
       }
     }
 
-    this.group.position.x += dx * currentSpeed * dt
-    this.group.position.z += dz * currentSpeed * dt
+    this.velocity.x = dx * currentSpeed
+    this.velocity.z = dz * currentSpeed
 
-    // Clamp inside motherboard board boundaries (30x20)
-    this.group.position.x = Math.max(1.0, Math.min(29.0, this.group.position.x))
-    this.group.position.z = Math.max(1.0, Math.min(19.0, this.group.position.z))
+    this.group.position.x += this.velocity.x * dt
+    this.group.position.z += this.velocity.z * dt
 
-    // Rotate player towards movement or aim
+    // Clamp inside motherboard board boundaries (36x26)
+    this.group.position.x = Math.max(1.5, Math.min(34.5, this.group.position.x))
+    this.group.position.z = Math.max(1.5, Math.min(24.5, this.group.position.z))
+
+    // Rotate player towards moving direction with smooth interpolation
     if (len > 0.01) {
       const targetAngle = Math.atan2(dx, dz)
       this.root.group.rotation.y = targetAngle
     }
 
-    // Update aura scale visual
-    const auraScale = this.stats.auraRadius / 1.2
-    this.auraMesh.scale.set(auraScale, 1, auraScale)
+    // Update Rubber-Hose procedural animation on Root
+    this.root.update(dt, this.velocity, this.stats.isDashing)
+
+    // Update aura scale visual & pulse
+    const auraScale = this.stats.auraRadius / 1.4
+    const pulse = 1.0 + Math.sin(Date.now() * 0.008) * 0.06
+    this.auraMesh.scale.set(auraScale * pulse, 1, auraScale * pulse)
   }
 
   takeDamage(amount = 1): boolean {
     if (this.stats.iFrames > 0 || this.stats.isDashing) return false
     this.stats.hp = Math.max(0, this.stats.hp - amount)
     this.stats.iFrames = 0.8 // 800ms i-frame
+    this.root.rig.triggerImpactSquash(0.5)
     return true
   }
 

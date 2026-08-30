@@ -1,108 +1,179 @@
-import type { Player } from '../entities/Player'
+import { gsap } from 'gsap'
 
-// via roguelike: 3 builds A/B/C — via rpg: builds clamp — ChoiceUI 4/run
-// [A] +25% Aura radius & knockback | [B] +35% Tir dégâts/cadence | [C] +15% Vitesse + taille aura
+// Diegetic Overclock Cards Selection UI with Space Grotesk & Chakra Petch typography
+// Builds: A Aura Overdrive, B Rapid Blast, C Cyber Speed
 
-export type BuildChoice = 'A' | 'B' | 'C'
+export interface UpgradeChoice {
+  id: string
+  build: 'A' | 'B' | 'C'
+  title: string
+  description: string
+  badge: string
+  icon: string
+  color: string
+}
+
+export const ALL_UPGRADES: UpgradeChoice[] = [
+  {
+    id: 'aura_1',
+    build: 'A',
+    title: 'Aura Overdrive',
+    description: 'Rayon de l\'aura +35% & Répulsion de choc des cryptos',
+    badge: 'AURA',
+    icon: '⚡',
+    color: '#00ff88',
+  },
+  {
+    id: 'shoot_1',
+    build: 'B',
+    title: 'Tir Accéléré',
+    description: 'Cadence de tir +50% & Projectiles perforants',
+    badge: 'CANNON',
+    icon: '🎯',
+    color: '#3399ff',
+  },
+  {
+    id: 'speed_1',
+    build: 'C',
+    title: 'Vélocité Cyber',
+    description: 'Vitesse de Root +30% & Cooldown du Dash -35%',
+    badge: 'MOBILITY',
+    icon: '🚀',
+    color: '#ffaa00',
+  },
+]
 
 export class ChoiceUI {
-  private container: HTMLDivElement | null = null
-  private isOpen = false
-  private onSelectCallback: ((choice: BuildChoice) => void) | null = null
+  private container: HTMLDivElement
+  public isOpen = false
 
   constructor() {
-    this.setupKeyboard()
+    this.container = document.createElement('div')
+    this.container.id = 'choice-ui'
+    this.container.style.position = 'fixed'
+    this.container.style.inset = '0'
+    this.container.style.display = 'none'
+    this.container.style.alignItems = 'center'
+    this.container.style.justifyContent = 'center'
+    this.container.style.background = 'rgba(5, 10, 15, 0.85)'
+    this.container.style.backdropFilter = 'blur(6px)'
+    this.container.style.zIndex = '100'
+    this.container.style.pointerEvents = 'auto'
+    this.container.style.fontFamily = "'Space Grotesk', 'Chakra Petch', sans-serif"
+    document.body.appendChild(this.container)
   }
 
-  private setupKeyboard(): void {
-    window.addEventListener('keydown', (e) => {
-      if (!this.isOpen) return
-      if (e.key === '1' || e.code === 'Digit1') this.select('A')
-      if (e.key === '2' || e.code === 'Digit2') this.select('B')
-      if (e.key === '3' || e.code === 'Digit3') this.select('C')
-    })
-  }
-
-  show(puceNumber: number, onSelect: (choice: BuildChoice) => void): void {
+  show(onSelect: (choice: UpgradeChoice) => void): void {
     this.isOpen = true
-    this.onSelectCallback = onSelect
-
-    if (!this.container) {
-      this.container = document.createElement('div')
-      this.container.id = 'choice-modal'
-      this.container.style.cssText = `
-        position: fixed;
-        top: 0; left: 0; right: 0; bottom: 0;
-        background: rgba(10, 20, 15, 0.85);
-        display: flex;
-        flex-direction: column;
-        align-items: center;
-        justify-content: center;
-        font-family: 'Space Grotesk', monospace;
-        color: #aaff00;
-        z-index: 10000;
-        image-rendering: pixelated;
-      `
-      document.body.appendChild(this.container)
-    }
-
-    this.container.innerHTML = `
-      <div style="background: #112218; border: 2px solid #aaff00; padding: 24px; max-width: 540px; text-align: center; box-shadow: 0 0 20px rgba(170,255,0,0.3);">
-        <div style="font-size: 14px; text-transform: uppercase; letter-spacing: 2px; color: #88ee00; margin-bottom: 8px;">
-          ⚡ SURCHAUFFE PUCE #${puceNumber} VALIDÉE ⚡
-        </div>
-        <h2 style="font-size: 20px; margin: 0 0 16px 0; color: #ffffff;">CHOISIS TON OVERCLOCK</h2>
-        
-        <div style="display: flex; gap: 12px; justify-content: center; margin-bottom: 16px;">
-          <div id="btn-choice-A" style="flex: 1; background: #1a3325; border: 1px solid #aaff00; padding: 14px 10px; cursor: pointer;">
-            <div style="font-size: 16px; font-weight: bold; color: #aaff00; margin-bottom: 6px;">[1] AURA MAX</div>
-            <div style="font-size: 11px; color: #ddffaa;">+25% Rayon Aura & Repoussement</div>
-          </div>
-          
-          <div id="btn-choice-B" style="flex: 1; background: #1a3325; border: 1px solid #aaff00; padding: 14px 10px; cursor: pointer;">
-            <div style="font-size: 16px; font-weight: bold; color: #aaff00; margin-bottom: 6px;">[2] TIR BOOST</div>
-            <div style="font-size: 11px; color: #ddffaa;">+35% Dégâts & Cadence Tir</div>
-          </div>
-          
-          <div id="btn-choice-C" style="flex: 1; background: #1a3325; border: 1px solid #aaff00; padding: 14px 10px; cursor: pointer;">
-            <div style="font-size: 16px; font-weight: bold; color: #aaff00; margin-bottom: 6px;">[3] SPEED RUN</div>
-            <div style="font-size: 11px; color: #ddffaa;">+15% Vitesse & Taille Globale</div>
-          </div>
-        </div>
-        
-        <div style="font-size: 11px; color: #88aa88;">Appuie sur [1], [2], ou [3] pour sélectionner</div>
-      </div>
-    `
-
     this.container.style.display = 'flex'
+    this.container.innerHTML = ''
 
-    document.getElementById('btn-choice-A')?.addEventListener('click', () => this.select('A'))
-    document.getElementById('btn-choice-B')?.addEventListener('click', () => this.select('B'))
-    document.getElementById('btn-choice-C')?.addEventListener('click', () => this.select('C'))
-  }
+    const panel = document.createElement('div')
+    panel.style.display = 'flex'
+    panel.style.flexDirection = 'column'
+    panel.style.alignItems = 'center'
+    panel.style.gap = '20px'
+    panel.style.maxWidth = '850px'
+    panel.style.width = '90%'
 
-  private select(choice: BuildChoice): void {
-    if (!this.isOpen) return
-    this.isOpen = false
-    if (this.container) this.container.style.display = 'none'
-    console.log(`[choice] Selected Overclock: [${choice}]`)
-    if (this.onSelectCallback) this.onSelectCallback(choice)
-  }
+    const header = document.createElement('div')
+    header.style.textAlign = 'center'
+    header.innerHTML = `
+      <div style="font-family: 'Chakra Petch', sans-serif; font-size: 13px; letter-spacing: 4px; color: #00ff88; text-transform: uppercase; margin-bottom: 6px;">[ SOLDER POINT COMPLETED ]</div>
+      <h2 style="font-size: 28px; font-weight: 800; color: #ffffff; margin: 0; text-shadow: 0 0 16px rgba(0,255,136,0.4);">CHOISIS TON OVERCLOCK</h2>
+      <div style="font-size: 13px; color: #8899aa; margin-top: 4px;">Appuie sur <b style="color: #fff;">[1]</b>, <b style="color: #fff;">[2]</b> ou <b style="color: #fff;">[3]</b></div>
+    `
+    panel.appendChild(header)
 
-  applyChoiceToPlayer(choice: BuildChoice, player: Player): void {
-    if (choice === 'A') {
-      player.stats.auraRadius = Math.min(2.5, player.stats.auraRadius * 1.25)
-      player.stats.auraPower *= 1.3
-    } else if (choice === 'B') {
-      player.stats.shootRate = Math.max(0.18, player.stats.shootRate * 0.75) // Faster
-      player.stats.shootDamage *= 1.35
-    } else if (choice === 'C') {
-      player.stats.speedMult = Math.min(1.8, player.stats.speedMult * 1.15)
-      player.stats.auraRadius = Math.min(2.5, player.stats.auraRadius * 1.1)
+    const cardsContainer = document.createElement('div')
+    cardsContainer.style.display = 'grid'
+    cardsContainer.style.gridTemplateColumns = 'repeat(3, 1fr)'
+    cardsContainer.style.gap = '16px'
+    cardsContainer.style.width = '100%'
+
+    ALL_UPGRADES.forEach((choice, idx) => {
+      const card = document.createElement('div')
+      card.style.background = 'linear-gradient(145deg, #101924, #0c1219)'
+      card.style.border = `2px solid ${choice.color}44`
+      card.style.borderRadius = '12px'
+      card.style.padding = '22px 18px'
+      card.style.display = 'flex'
+      card.style.flexDirection = 'column'
+      card.style.alignItems = 'center'
+      card.style.textAlign = 'center'
+      card.style.cursor = 'pointer'
+      card.style.transition = 'all 0.2s ease'
+      card.style.boxShadow = `0 8px 24px rgba(0,0,0,0.5)`
+
+      card.innerHTML = `
+        <div style="display: flex; justify-content: space-between; width: 100%; align-items: center; margin-bottom: 12px;">
+          <span style="font-size: 11px; font-weight: 700; background: ${choice.color}22; color: ${choice.color}; padding: 4px 8px; border-radius: 4px; border: 1px solid ${choice.color}66;">${choice.badge}</span>
+          <span style="font-size: 14px; font-weight: 800; color: #ffffff; background: #222; padding: 2px 8px; border-radius: 4px;">[${idx + 1}]</span>
+        </div>
+        <div style="font-size: 38px; margin: 8px 0;">${choice.icon}</div>
+        <div style="font-size: 18px; font-weight: 700; color: #ffffff; margin-bottom: 8px;">${choice.title}</div>
+        <div style="font-size: 13px; color: #a0aec0; line-height: 1.4;">${choice.description}</div>
+      `
+
+      card.onmouseenter = () => {
+        card.style.borderColor = choice.color
+        card.style.transform = 'translateY(-6px)'
+        card.style.boxShadow = `0 12px 30px ${choice.color}33`
+      }
+      card.onmouseleave = () => {
+        card.style.borderColor = `${choice.color}44`
+        card.style.transform = 'translateY(0)'
+        card.style.boxShadow = `0 8px 24px rgba(0,0,0,0.5)`
+      }
+
+      card.onclick = () => {
+        this.selectChoice(choice, onSelect)
+      }
+
+      cardsContainer.appendChild(card)
+    })
+
+    panel.appendChild(cardsContainer)
+    this.container.appendChild(panel)
+
+    // GSAP Entrance
+    gsap.fromTo(panel, { scale: 0.85, opacity: 0 }, { scale: 1, opacity: 1, duration: 0.25, ease: 'back.out(1.5)' })
+
+    const keyHandler = (e: KeyboardEvent) => {
+      if (!this.isOpen) return
+      if (e.key === '1') {
+        const c = ALL_UPGRADES[0]
+        if (c) {
+          window.removeEventListener('keydown', keyHandler)
+          this.selectChoice(c, onSelect)
+        }
+      } else if (e.key === '2') {
+        const c = ALL_UPGRADES[1]
+        if (c) {
+          window.removeEventListener('keydown', keyHandler)
+          this.selectChoice(c, onSelect)
+        }
+      } else if (e.key === '3') {
+        const c = ALL_UPGRADES[2]
+        if (c) {
+          window.removeEventListener('keydown', keyHandler)
+          this.selectChoice(c, onSelect)
+        }
+      }
     }
+    window.addEventListener('keydown', keyHandler)
   }
 
-  get visible(): boolean {
-    return this.isOpen
+  private selectChoice(choice: UpgradeChoice, onSelect: (c: UpgradeChoice) => void): void {
+    this.isOpen = false
+    gsap.to(this.container, {
+      opacity: 0,
+      duration: 0.15,
+      onComplete: () => {
+        this.container.style.display = 'none'
+        this.container.style.opacity = '1'
+        onSelect(choice)
+      },
+    })
   }
 }
