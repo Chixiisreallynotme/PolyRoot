@@ -1,9 +1,7 @@
 import { RankSystem, type RunScore } from '../systems/RankSystem'
+import { PixelArt } from './PixelArt'
 
-// UI for Victory and Game Over screens
-// E2 break: “Tu as battu les grands studios.”
-// B1 break: “Encore raté ? T'étais à 3s du S !”
-// B3 break: “Tu as chauffé ton CPU IRL”
+// UI for Victory and Game Over screens with Bitcount Grid Double & Pixel Art SVGs (Zero emojis)
 
 export class VictoryScreen {
   private container: HTMLDivElement | null = null
@@ -23,70 +21,70 @@ export class VictoryScreen {
       this.container.style.cssText = `
         position: fixed;
         top: 0; left: 0; right: 0; bottom: 0;
-        background: rgba(10, 15, 12, 0.92);
+        background: rgba(8, 14, 24, 0.94);
+        backdrop-filter: blur(8px);
         display: flex;
         flex-direction: column;
         align-items: center;
         justify-content: center;
-        font-family: 'Space Grotesk', monospace;
-        color: #aaff00;
+        font-family: 'Bitcount Grid Double', monospace;
+        color: #00ff88;
         z-index: 10000;
         image-rendering: pixelated;
       `
       document.body.appendChild(this.container)
     }
 
-    const title = isVictory ? 'Tu as battu les grands studios.' : 'GAME OVER'
-    const titleColor = isVictory ? '#aaff00' : '#ff3333'
-    const rankBadgeColor = score.rank === 'S' ? '#ffd700' : score.rank === 'A' ? '#aaff00' : '#00ddff'
+    const title = isVictory ? 'TU AS BATTU LES GRANDS STUDIOS.' : 'GAME OVER'
+    const titleColor = isVictory ? '#00ff88' : '#ff2244'
+    const rankBadgeColor = score.rank === 'S' ? '#ffd700' : score.rank === 'A' ? '#00ff88' : '#3399ff'
 
     const nearMissHtml = score.nearMissMessage
-      ? `<div style="font-size: 14px; color: #ffaa00; margin-bottom: 12px;">⚡ ${score.nearMissMessage} ⚡</div>`
+      ? `<div style="font-size: 15px; color: #ffaa00; margin-bottom: 14px; letter-spacing: 1px;">[ ${score.nearMissMessage} ]</div>`
       : ''
 
     const subText = isVictory
       ? `8 puces en ${RankSystem.formatTime(score.rawTimeSeconds)} — Rang ${score.rank} — Eux avaient 800 ennemis. Toi tu avais du fun.`
       : `Grillé sur le circuit. ${pucesHeated} / 8 puces complétées.`
 
-    // B3 overlay IRL CPU
     const irlCpuHtml = `
-      <div style="font-size: 11px; color: #88aa88; margin-top: 14px; border-top: 1px dashed #335544; padding-top: 10px;">
+      <div style="font-size: 11px; color: #8899aa; margin-top: 16px; border-top: 1px dashed #334155; padding-top: 12px; letter-spacing: 1px;">
         Tu as chauffé ton CPU IRL — 200 particules | 3 draw calls | 60 FPS p95
       </div>
     `
 
     this.container.innerHTML = `
-      <div style="background: #112218; border: 2px solid ${titleColor}; padding: 32px; max-width: 580px; text-align: center; box-shadow: 0 0 30px rgba(0,0,0,0.8);">
-        <h1 style="font-size: 26px; margin: 0 0 10px 0; color: ${titleColor}; letter-spacing: 1px;">
+      <div style="background: #0f1926; border: 2px solid ${titleColor}; padding: 36px 40px; max-width: 620px; text-align: center; box-shadow: 0 0 35px rgba(0,0,0,0.85); border-radius: 8px;">
+        <h1 style="font-family: 'Bitcount Grid Double', monospace; font-size: 28px; font-weight: 900; margin: 0 0 12px 0; color: ${titleColor}; letter-spacing: 2px; text-shadow: 0 0 16px ${titleColor}66;">
           ${title}
         </h1>
         
-        <p style="font-size: 13px; color: #ffffff; margin-bottom: 20px; line-height: 1.5;">
+        <p style="font-size: 13px; color: #cbd5e0; margin-bottom: 24px; line-height: 1.5; font-family: 'Space Grotesk', sans-serif;">
           ${subText}
         </p>
 
-        <div style="background: #1a3325; border: 1px solid #336644; padding: 16px; margin-bottom: 20px; text-align: left;">
-          <div style="display: flex; justify-content: space-between; margin-bottom: 8px;">
-            <span style="color: #88aa88;">TEMPS BRUT:</span>
-            <span style="color: #ffffff; font-weight: bold;">${RankSystem.formatTime(score.rawTimeSeconds)}</span>
+        <div style="background: #152233; border: 1px solid #1e3a5f; padding: 18px 22px; margin-bottom: 22px; text-align: left; border-radius: 6px;">
+          <div style="display: flex; justify-content: space-between; margin-bottom: 10px; font-size: 13px;">
+            <span style="color: #94a3b8; letter-spacing: 1px;">TEMPS BRUT:</span>
+            <span style="color: #ffffff; font-weight: bold; letter-spacing: 1px;">${RankSystem.formatTime(score.rawTimeSeconds)}</span>
           </div>
-          <div style="display: flex; justify-content: space-between; margin-bottom: 8px;">
-            <span style="color: #88aa88;">BONUS KILLS (${score.kills} × -0.05s):</span>
-            <span style="color: #aaff00; font-weight: bold;">-${(score.kills * 0.05).toFixed(2)}s</span>
+          <div style="display: flex; justify-content: space-between; margin-bottom: 10px; font-size: 13px;">
+            <span style="color: #94a3b8; letter-spacing: 1px;">BONUS KILLS (${score.kills} × -0.05s):</span>
+            <span style="color: #00ff88; font-weight: bold; letter-spacing: 1px;">-${(score.kills * 0.05).toFixed(2)}s</span>
           </div>
-          <div style="display: flex; justify-content: space-between; margin-bottom: 8px;">
-            <span style="color: #88aa88;">SCORE FINAL SPEEDRUN:</span>
-            <span style="color: #aaff00; font-weight: bold;">${RankSystem.formatTime(score.scoreTimeSeconds)}</span>
+          <div style="display: flex; justify-content: space-between; margin-bottom: 10px; font-size: 13px;">
+            <span style="color: #94a3b8; letter-spacing: 1px;">SCORE FINAL SPEEDRUN:</span>
+            <span style="color: #00ff88; font-weight: bold; letter-spacing: 1px;">${RankSystem.formatTime(score.scoreTimeSeconds)}</span>
           </div>
-          <div style="display: flex; justify-content: space-between; align-items: center; border-top: 1px solid #336644; padding-top: 8px;">
-            <span style="color: #88aa88;">RANG ATTEINT:</span>
-            <span style="font-size: 22px; font-weight: bold; color: ${rankBadgeColor};">RANG ${score.rank}</span>
+          <div style="display: flex; justify-content: space-between; align-items: center; border-top: 1px solid #1e3a5f; padding-top: 12px; margin-top: 6px;">
+            <span style="color: #94a3b8; letter-spacing: 1px;">RANG ATTEINT:</span>
+            <span style="font-family: 'Bitcount Grid Double', monospace; font-size: 24px; font-weight: 900; color: ${rankBadgeColor}; letter-spacing: 2px;">RANG ${score.rank}</span>
           </div>
         </div>
 
         ${nearMissHtml}
 
-        <button id="btn-restart-game" style="background: #aaff00; color: #112218; border: none; font-family: inherit; font-size: 14px; font-weight: bold; padding: 12px 24px; cursor: pointer; text-transform: uppercase;">
+        <button id="btn-restart-game" style="background: #00ff88; color: #081018; border: none; font-family: 'Bitcount Grid Double', monospace; font-size: 15px; font-weight: 900; padding: 14px 28px; cursor: pointer; text-transform: uppercase; letter-spacing: 2px; border-radius: 4px; box-shadow: 0 0 16px rgba(0,255,136,0.4); transition: transform 0.15s ease;">
           [R] RECOMMENCER LA RUN
         </button>
 

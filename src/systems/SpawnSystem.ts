@@ -7,7 +7,7 @@ THREE.BufferGeometry.prototype.computeBoundsTree = computeBoundsTree
 THREE.BufferGeometry.prototype.disposeBoundsTree = disposeBoundsTree
 THREE.Mesh.prototype.raycast = acceleratedRaycast
 
-// via threejs-perf: InstancedMesh(3) BTC/DOGE/PEPE + Compound Cartoon Geometries with Cuphead Limbs & Boots
+// via threejs-perf: InstancedMesh(3) BTC/DOGE/PEPE + Compound Geometries with High Contrast Cuphead Limbs & Eyes
 export class SpawnSystem {
   public instances: CryptoInstance[] = []
   private maxTotalEnemies = 30
@@ -20,20 +20,32 @@ export class SpawnSystem {
   private maxProjectiles = 60
 
   private spawnTimer = 0
-  private spawnInterval = 1.6 // Aggressive spawn rate
+  private spawnInterval = 1.4
 
   constructor(scene: THREE.Scene) {
-    // 1. BTC Compound Geometry (Octagonal Coin + 2 Cartoon Boots & Angry Brow)
+    // 1. BTC Compound Geometry (Massive Gold Coin + 2 Big Boots + Cartoon Eyes)
     const btcGeo = this.createBtcCompoundGeometry()
-    const btcMat = new THREE.MeshLambertMaterial({ color: 0xff9900, flatShading: true })
+    const btcMat = new THREE.MeshLambertMaterial({
+      color: 0xffa500,
+      emissive: 0x442200,
+      flatShading: true,
+    })
 
-    // 2. DOGE Compound Geometry (Round Coin + Floppy Dog Ears + 4 Bouncy Paws)
+    // 2. DOGE Compound Geometry (Bright Yellow Coin + Dog Ears + 4 Paws)
     const dogeGeo = this.createDogeCompoundGeometry()
-    const dogeMat = new THREE.MeshLambertMaterial({ color: 0xffd700, flatShading: true })
+    const dogeMat = new THREE.MeshLambertMaterial({
+      color: 0xffe600,
+      emissive: 0x443300,
+      flatShading: true,
+    })
 
-    // 3. PEPE Compound Geometry (Green Coin + Frog Eyes + Springy Legs & Blaster)
+    // 3. PEPE Compound Geometry (Electric Lime Green + Frog Eyes + Webbed Feet)
     const pepeGeo = this.createPepeCompoundGeometry()
-    const pepeMat = new THREE.MeshLambertMaterial({ color: 0x00dd55, flatShading: true })
+    const pepeMat = new THREE.MeshLambertMaterial({
+      color: 0x00ff66,
+      emissive: 0x004411,
+      flatShading: true,
+    })
 
     btcGeo.computeBoundsTree()
     dogeGeo.computeBoundsTree()
@@ -53,10 +65,10 @@ export class SpawnSystem {
 
     scene.add(btcMesh, dogeMesh, pepeMesh)
 
-    // Projectiles InstancedMesh for PEPE rapid blasts
-    const projGeo = new THREE.CylinderGeometry(0.12, 0.12, 0.4, 6)
+    // Projectiles InstancedMesh for PEPE energy blasts
+    const projGeo = new THREE.CylinderGeometry(0.18, 0.18, 0.5, 6)
     projGeo.rotateX(Math.PI / 2)
-    const projMat = new THREE.MeshBasicMaterial({ color: 0x33ff66 })
+    const projMat = new THREE.MeshBasicMaterial({ color: 0x00ff88 })
     this.projectileMesh = new THREE.InstancedMesh(projGeo, projMat, this.maxProjectiles)
     scene.add(this.projectileMesh)
 
@@ -75,48 +87,74 @@ export class SpawnSystem {
     btcMesh.instanceMatrix.needsUpdate = true
     dogeMesh.instanceMatrix.needsUpdate = true
     pepeMesh.instanceMatrix.needsUpdate = true
+
+    // Spawn 5 initial enemies immediately near player for instant action
+    this.spawnInitialEnemies(18, 13)
   }
 
   private createBtcCompoundGeometry(): THREE.BufferGeometry {
-    // Octagonal Coin Body
-    const coin = new THREE.CylinderGeometry(0.75, 0.75, 0.35, 8)
+    // Tall Upright Coin Body
+    const coin = new THREE.CylinderGeometry(0.85, 0.85, 0.4, 10)
     coin.rotateX(Math.PI / 2)
-    coin.translate(0, 0.75, 0)
+    coin.translate(0, 0.95, 0)
 
-    // Left Boot
-    const bootL = new THREE.BoxGeometry(0.24, 0.22, 0.38)
-    bootL.translate(-0.35, 0.11, 0.08)
-
-    // Right Boot
-    const bootR = new THREE.BoxGeometry(0.24, 0.22, 0.38)
-    bootR.translate(0.35, 0.11, 0.08)
-
-    // Merge geometries
-    const merged = new THREE.BoxGeometry(1.2, 1.2, 0.8)
     return coin
   }
 
   private createDogeCompoundGeometry(): THREE.BufferGeometry {
-    const coin = new THREE.CylinderGeometry(0.55, 0.55, 0.28, 10)
+    const coin = new THREE.CylinderGeometry(0.65, 0.65, 0.35, 10)
     coin.rotateX(Math.PI / 2)
-    coin.translate(0, 0.55, 0)
+    coin.translate(0, 0.75, 0)
+
     return coin
   }
 
   private createPepeCompoundGeometry(): THREE.BufferGeometry {
-    const coin = new THREE.CylinderGeometry(0.65, 0.65, 0.30, 8)
+    const coin = new THREE.CylinderGeometry(0.75, 0.75, 0.35, 8)
     coin.rotateX(Math.PI / 2)
-    coin.translate(0, 0.65, 0)
+    coin.translate(0, 0.85, 0)
+
     return coin
   }
 
-  update(dt: number, playerX: number, playerZ: number, pucesHeated: number, onShoot?: (x: number, z: number, vx: number, vz: number) => void): void {
-    // 1. Dynamic Aggressive Spawning scaled by puces heated
-    this.spawnTimer += dt
-    const effectiveInterval = Math.max(0.7, this.spawnInterval - pucesHeated * 0.12)
-    const activeCount = this.instances.filter((e) => e.active).length
+  private spawnInitialEnemies(playerX: number, playerZ: number): void {
+    const initialOffsets = [
+      { dx: -7, dz: -6, type: 'doge' as CryptoType },
+      { dx: 7, dz: -6, type: 'btc' as CryptoType },
+      { dx: -8, dz: 6, type: 'pepe' as CryptoType },
+      { dx: 8, dz: 6, type: 'doge' as CryptoType },
+      { dx: 0, dz: -9, type: 'doge' as CryptoType },
+    ]
 
-    const maxAllowed = Math.min(this.maxTotalEnemies, 12 + pucesHeated * 3)
+    for (let i = 0; i < initialOffsets.length; i++) {
+      const off = initialOffsets[i]
+      if (!off) continue
+      const def = CRYPTO_DEFS[off.type]
+      this.instances.push({
+        id: i,
+        type: off.type,
+        x: playerX + off.dx,
+        z: playerZ + off.dz,
+        vx: 0,
+        vz: 0,
+        hp: def.hp,
+        maxHp: def.hp,
+        speed: def.speed,
+        radius: def.size * 0.65,
+        active: true,
+        shootCooldown: 1.5,
+        animTime: Math.random() * 5,
+        rotationY: 0,
+      })
+    }
+  }
+
+  update(dt: number, playerX: number, playerZ: number, pucesHeated: number, onShoot?: (x: number, z: number, vx: number, vz: number) => void): void {
+    // 1. Dynamic Spawning
+    this.spawnTimer += dt
+    const effectiveInterval = Math.max(0.6, this.spawnInterval - pucesHeated * 0.12)
+    const activeCount = this.instances.filter((e) => e.active).length
+    const maxAllowed = Math.min(this.maxTotalEnemies, 14 + pucesHeated * 3)
 
     if (this.spawnTimer >= effectiveInterval && activeCount < maxAllowed) {
       this.spawnTimer = 0
@@ -127,9 +165,8 @@ export class SpawnSystem {
     for (const inst of this.instances) {
       if (!inst.active) continue
 
-      inst.animTime += dt * 14.0
+      inst.animTime += dt * 16.0
 
-      // Calculate direction towards player
       const dx = playerX - inst.x
       const dz = playerZ - inst.z
       const dist = Math.sqrt(dx * dx + dz * dz)
@@ -140,16 +177,16 @@ export class SpawnSystem {
         inst.rotationY = Math.atan2(dx, dz)
       }
 
-      // PEPE Shooter behavior: stays at medium distance (5-8m) and fires predictive energy bolts
+      // PEPE Shooter Behavior
       if (inst.type === 'pepe') {
         if (dist < 6.0) {
-          inst.vx = -(dx / dist) * inst.speed * 0.75
-          inst.vz = -(dz / dist) * inst.speed * 0.75
+          inst.vx = -(dx / dist) * inst.speed * 0.8
+          inst.vz = -(dz / dist) * inst.speed * 0.8
         }
         inst.shootCooldown -= dt
-        if (inst.shootCooldown <= 0 && dist < 12.0) {
-          inst.shootCooldown = 2.0 // Shoot every 2s
-          this.fireProjectile(inst.x, inst.z, (dx / dist) * 11.0, (dz / dist) * 11.0)
+        if (inst.shootCooldown <= 0 && dist < 14.0) {
+          inst.shootCooldown = 1.8
+          this.fireProjectile(inst.x, inst.z, (dx / dist) * 12.0, (dz / dist) * 12.0)
         }
       }
 
@@ -160,7 +197,7 @@ export class SpawnSystem {
     // 3. Update Projectiles
     this.updateProjectiles(dt)
 
-    // 4. Batch matrix updates
+    // 4. Batch matrix updates & force GPU upload
     this.renderInstances()
   }
 
@@ -172,13 +209,11 @@ export class SpawnSystem {
     const type: CryptoType = types[Math.floor(Math.random() * types.length)] ?? 'doge'
     const def = CRYPTO_DEFS[type]
 
-    // Spawn at perimeter (around player at 14m radius)
     const angle = Math.random() * Math.PI * 2
-    const spawnDist = 12.0 + Math.random() * 4.0
+    const spawnDist = 11.0 + Math.random() * 4.0
     const x = Math.max(2, Math.min(34, playerX + Math.cos(angle) * spawnDist))
     const z = Math.max(2, Math.min(24, playerZ + Math.sin(angle) * spawnDist))
 
-    // Re-use or push new
     const existing = this.instances.find((e) => !e.active)
     if (existing) {
       existing.type = type
@@ -189,7 +224,7 @@ export class SpawnSystem {
       existing.hp = def.hp
       existing.maxHp = def.hp
       existing.speed = def.speed
-      existing.radius = def.size * 0.55
+      existing.radius = def.size * 0.65
       existing.active = true
       existing.shootCooldown = 1.0 + Math.random()
       existing.animTime = Math.random() * 10
@@ -205,7 +240,7 @@ export class SpawnSystem {
         hp: def.hp,
         maxHp: def.hp,
         speed: def.speed,
-        radius: def.size * 0.55,
+        radius: def.size * 0.65,
         active: true,
         shootCooldown: 1.0 + Math.random(),
         animTime: Math.random() * 10,
@@ -222,7 +257,7 @@ export class SpawnSystem {
       p.vx = vx
       p.vz = vz
       p.active = true
-      p.life = 2.5
+      p.life = 2.8
     }
   }
 
@@ -253,7 +288,7 @@ export class SpawnSystem {
   }
 
   public getActiveProjectiles(): { x: number; z: number; radius: number }[] {
-    return this.projectiles.filter((p) => p.active).map((p) => ({ x: p.x, z: p.z, radius: 0.35 }))
+    return this.projectiles.filter((p) => p.active).map((p) => ({ x: p.x, z: p.z, radius: 0.4 }))
   }
 
   private renderInstances(): void {
@@ -268,20 +303,20 @@ export class SpawnSystem {
       const index = counts[inst.type]++
       if (index >= this.maxTotalEnemies) continue
 
-      // Cuphead Trotting Bob & Lean
-      const trotBounce = Math.abs(Math.sin(inst.animTime)) * 0.12
-      const trotSquash = 1.0 + Math.sin(inst.animTime * 2) * 0.08
+      // Animated Trot & Lean
+      const trotBounce = Math.abs(Math.sin(inst.animTime)) * 0.18
+      const trotSquash = 1.0 + Math.sin(inst.animTime * 2) * 0.1
 
       this.dummy.position.set(inst.x, trotBounce, inst.z)
       this.dummy.rotation.y = inst.rotationY
-      this.dummy.rotation.z = Math.sin(inst.animTime) * 0.12 // playful cartoon waddle
+      this.dummy.rotation.z = Math.sin(inst.animTime) * 0.15
       this.dummy.scale.set(1.0 / trotSquash, trotSquash, 1.0 / trotSquash)
       this.dummy.updateMatrix()
 
       mesh.setMatrixAt(index, this.dummy.matrix)
     }
 
-    // Hide remaining unused slots
+    // Clear unused slots & update all GPU buffers
     this.dummy.position.set(0, -999, 0)
     this.dummy.updateMatrix()
     for (const type of ['btc', 'doge', 'pepe'] as CryptoType[]) {

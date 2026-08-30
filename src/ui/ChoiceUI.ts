@@ -1,6 +1,7 @@
 import { gsap } from 'gsap'
+import { PixelArt } from './PixelArt'
 
-// Diegetic Overclock Cards Selection UI with Space Grotesk & Chakra Petch typography
+// Diegetic Overclock Cards Selection UI with Bitcount Grid Double & Pixel Art SVGs (Zero emojis)
 // Builds: A Aura Overdrive, B Rapid Blast, C Cyber Speed
 
 export interface UpgradeChoice {
@@ -9,7 +10,7 @@ export interface UpgradeChoice {
   title: string
   description: string
   badge: string
-  icon: string
+  iconSvg: string
   color: string
 }
 
@@ -17,28 +18,28 @@ export const ALL_UPGRADES: UpgradeChoice[] = [
   {
     id: 'aura_1',
     build: 'A',
-    title: 'Aura Overdrive',
+    title: 'AURA OVERDRIVE',
     description: 'Rayon de l\'aura +35% & Répulsion de choc des cryptos',
     badge: 'AURA',
-    icon: '⚡',
+    iconSvg: PixelArt.lightning,
     color: '#00ff88',
   },
   {
     id: 'shoot_1',
     build: 'B',
-    title: 'Tir Accéléré',
+    title: 'TIR ACCÉLÉRÉ',
     description: 'Cadence de tir +50% & Projectiles perforants',
     badge: 'CANNON',
-    icon: '🎯',
+    iconSvg: PixelArt.cannon,
     color: '#3399ff',
   },
   {
     id: 'speed_1',
     build: 'C',
-    title: 'Vélocité Cyber',
+    title: 'VÉLOCITÉ CYBER',
     description: 'Vitesse de Root +30% & Cooldown du Dash -35%',
     badge: 'MOBILITY',
-    icon: '🚀',
+    iconSvg: PixelArt.speed,
     color: '#ffaa00',
   },
 ]
@@ -55,11 +56,11 @@ export class ChoiceUI {
     this.container.style.display = 'none'
     this.container.style.alignItems = 'center'
     this.container.style.justifyContent = 'center'
-    this.container.style.background = 'rgba(5, 10, 15, 0.85)'
-    this.container.style.backdropFilter = 'blur(6px)'
+    this.container.style.background = 'rgba(8, 14, 24, 0.88)'
+    this.container.style.backdropFilter = 'blur(8px)'
     this.container.style.zIndex = '100'
     this.container.style.pointerEvents = 'auto'
-    this.container.style.fontFamily = "'Space Grotesk', 'Chakra Petch', sans-serif"
+    this.container.style.fontFamily = "'Bitcount Grid Double', 'Space Grotesk', monospace"
     document.body.appendChild(this.container)
   }
 
@@ -72,58 +73,60 @@ export class ChoiceUI {
     panel.style.display = 'flex'
     panel.style.flexDirection = 'column'
     panel.style.alignItems = 'center'
-    panel.style.gap = '20px'
-    panel.style.maxWidth = '850px'
+    panel.style.gap = '22px'
+    panel.style.maxWidth = '900px'
     panel.style.width = '90%'
 
     const header = document.createElement('div')
     header.style.textAlign = 'center'
     header.innerHTML = `
-      <div style="font-family: 'Chakra Petch', sans-serif; font-size: 13px; letter-spacing: 4px; color: #00ff88; text-transform: uppercase; margin-bottom: 6px;">[ SOLDER POINT COMPLETED ]</div>
-      <h2 style="font-size: 28px; font-weight: 800; color: #ffffff; margin: 0; text-shadow: 0 0 16px rgba(0,255,136,0.4);">CHOISIS TON OVERCLOCK</h2>
-      <div style="font-size: 13px; color: #8899aa; margin-top: 4px;">Appuie sur <b style="color: #fff;">[1]</b>, <b style="color: #fff;">[2]</b> ou <b style="color: #fff;">[3]</b></div>
+      <div style="font-family: 'Bitcount Grid Double', monospace; font-size: 14px; letter-spacing: 4px; color: #00ff88; text-transform: uppercase; margin-bottom: 6px;">[ SOLDER POINT COMPLETED ]</div>
+      <h2 style="font-family: 'Bitcount Grid Double', monospace; font-size: 32px; font-weight: 900; color: #ffffff; margin: 0; text-shadow: 0 0 16px rgba(0,255,136,0.5); letter-spacing: 2px;">CHOISIS TON OVERCLOCK</h2>
+      <div style="font-size: 13px; color: #94a3b8; margin-top: 6px; letter-spacing: 1px;">Appuie sur <b style="color: #00ff88;">[1]</b>, <b style="color: #3399ff;">[2]</b> ou <b style="color: #ffaa00;">[3]</b></div>
     `
     panel.appendChild(header)
 
     const cardsContainer = document.createElement('div')
     cardsContainer.style.display = 'grid'
     cardsContainer.style.gridTemplateColumns = 'repeat(3, 1fr)'
-    cardsContainer.style.gap = '16px'
+    cardsContainer.style.gap = '18px'
     cardsContainer.style.width = '100%'
 
     ALL_UPGRADES.forEach((choice, idx) => {
       const card = document.createElement('div')
-      card.style.background = 'linear-gradient(145deg, #101924, #0c1219)'
-      card.style.border = `2px solid ${choice.color}44`
-      card.style.borderRadius = '12px'
-      card.style.padding = '22px 18px'
+      card.style.background = 'linear-gradient(160deg, #142030, #0c1420)'
+      card.style.border = `2px solid ${choice.color}55`
+      card.style.borderRadius = '10px'
+      card.style.padding = '24px 20px'
       card.style.display = 'flex'
       card.style.flexDirection = 'column'
       card.style.alignItems = 'center'
       card.style.textAlign = 'center'
       card.style.cursor = 'pointer'
       card.style.transition = 'all 0.2s ease'
-      card.style.boxShadow = `0 8px 24px rgba(0,0,0,0.5)`
+      card.style.boxShadow = `0 10px 30px rgba(0,0,0,0.6)`
 
       card.innerHTML = `
-        <div style="display: flex; justify-content: space-between; width: 100%; align-items: center; margin-bottom: 12px;">
-          <span style="font-size: 11px; font-weight: 700; background: ${choice.color}22; color: ${choice.color}; padding: 4px 8px; border-radius: 4px; border: 1px solid ${choice.color}66;">${choice.badge}</span>
-          <span style="font-size: 14px; font-weight: 800; color: #ffffff; background: #222; padding: 2px 8px; border-radius: 4px;">[${idx + 1}]</span>
+        <div style="display: flex; justify-content: space-between; width: 100%; align-items: center; margin-bottom: 14px;">
+          <span style="font-family: 'Bitcount Grid Double', monospace; font-size: 12px; font-weight: 700; background: ${choice.color}22; color: ${choice.color}; padding: 4px 8px; border-radius: 4px; border: 1px solid ${choice.color}66; letter-spacing: 1px;">${choice.badge}</span>
+          <span style="font-family: 'Bitcount Grid Double', monospace; font-size: 15px; font-weight: 800; color: #ffffff; background: #1e293b; padding: 2px 10px; border-radius: 4px; border: 1px solid #334155;">[${idx + 1}]</span>
         </div>
-        <div style="font-size: 38px; margin: 8px 0;">${choice.icon}</div>
-        <div style="font-size: 18px; font-weight: 700; color: #ffffff; margin-bottom: 8px;">${choice.title}</div>
-        <div style="font-size: 13px; color: #a0aec0; line-height: 1.4;">${choice.description}</div>
+        <div style="margin: 12px 0 16px 0; display: flex; align-items: center; justify-content: center;">
+          ${choice.iconSvg}
+        </div>
+        <div style="font-family: 'Bitcount Grid Double', monospace; font-size: 20px; font-weight: 800; color: #ffffff; margin-bottom: 10px; letter-spacing: 1px;">${choice.title}</div>
+        <div style="font-size: 13px; color: #cbd5e0; line-height: 1.5; font-family: 'Space Grotesk', sans-serif;">${choice.description}</div>
       `
 
       card.onmouseenter = () => {
         card.style.borderColor = choice.color
         card.style.transform = 'translateY(-6px)'
-        card.style.boxShadow = `0 12px 30px ${choice.color}33`
+        card.style.boxShadow = `0 14px 34px ${choice.color}44`
       }
       card.onmouseleave = () => {
-        card.style.borderColor = `${choice.color}44`
+        card.style.borderColor = `${choice.color}55`
         card.style.transform = 'translateY(0)'
-        card.style.boxShadow = `0 8px 24px rgba(0,0,0,0.5)`
+        card.style.boxShadow = `0 10px 30px rgba(0,0,0,0.6)`
       }
 
       card.onclick = () => {
@@ -137,7 +140,7 @@ export class ChoiceUI {
     this.container.appendChild(panel)
 
     // GSAP Entrance
-    gsap.fromTo(panel, { scale: 0.85, opacity: 0 }, { scale: 1, opacity: 1, duration: 0.25, ease: 'back.out(1.5)' })
+    gsap.fromTo(panel, { scale: 0.88, opacity: 0 }, { scale: 1, opacity: 1, duration: 0.25, ease: 'back.out(1.5)' })
 
     const keyHandler = (e: KeyboardEvent) => {
       if (!this.isOpen) return

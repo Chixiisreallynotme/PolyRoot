@@ -12,9 +12,10 @@ import { VictoryScreen } from './ui/VictoryScreen'
 import { RankSystem } from './systems/RankSystem'
 import { ProgressionSystem } from './systems/ProgressionSystem'
 import { FourthWall } from './systems/FourthWall'
+import { PixelArt } from './ui/PixelArt'
 
 // via threejs-fundamentals: antialias false + camera follow 3D — via threejs-psx-shader: FBO 320x240 Nearest
-// PolyRoot : Escape from PS1 — 3D Macro Motherboard Survivor with Rubber-Hose Animations & Free-Order Canalisation
+// PolyRoot : Escape from PS1 — Faithful Sony PS1 Motherboard Survivor with Bitcount Grid Double & Rubber-Hose Animations
 
 class Game {
   private renderer: THREE.WebGLRenderer
@@ -38,7 +39,7 @@ class Game {
   private clock = new THREE.Clock()
   private isGameOver = false
   private isVictory = false
-  private cameraOffset = new THREE.Vector3(0, 9.5, 11.5) // Dynamic 3D third-person follow
+  private cameraOffset = new THREE.Vector3(0, 10.5, 12.0) // Dynamic 3D third-person follow
   private nextChoiceThreshold = 2 // Triggers at 2, 4, 6, 8
 
   constructor() {
@@ -52,39 +53,41 @@ class Game {
     const app = document.getElementById('app') || document.body
     app.appendChild(this.renderer.domElement)
 
-    // 2. Scene & Fog Setup (PS1 15-bit aesthetic)
+    // 2. Scene & Bright Illuminated PS1 Environment
     this.scene = new THREE.Scene()
-    this.scene.background = new THREE.Color(0x0a101d)
-    this.scene.fog = new THREE.FogExp2(0x0a101d, 0.015)
+    this.scene.background = new THREE.Color(0x182436)
+    this.scene.fog = new THREE.FogExp2(0x182436, 0.008)
 
     // 3. 3D Camera Setup (Third-person follow)
-    this.camera = new THREE.PerspectiveCamera(48, 960 / 720, 0.1, 100)
+    this.camera = new THREE.PerspectiveCamera(46, 960 / 720, 0.1, 100)
     this.camera.position.set(18, 14, 25)
     this.camera.lookAt(18, 0, 13)
 
-    // 4. Lighting Rig (Directional Shadow Caster + Colored Point Lights)
-    const ambientLight = new THREE.AmbientLight(0xddeeff, 0.85)
+    // 4. Bright Lighting Rig (Zero dark gloom)
+    const ambientLight = new THREE.AmbientLight(0xffffff, 1.4)
     this.scene.add(ambientLight)
 
-    const sun = new THREE.DirectionalLight(0xffeedd, 1.4)
-    sun.position.set(14, 24, 18)
+    const sun = new THREE.DirectionalLight(0xfffaee, 2.0)
+    sun.position.set(16, 28, 20)
     sun.castShadow = true
     sun.shadow.mapSize.width = 2048
     sun.shadow.mapSize.height = 2048
     sun.shadow.camera.near = 0.5
-    sun.shadow.camera.far = 60
-    sun.shadow.camera.left = -22
-    sun.shadow.camera.right = 22
-    sun.shadow.camera.top = 22
-    sun.shadow.camera.bottom = -22
+    sun.shadow.camera.far = 65
+    sun.shadow.camera.left = -24
+    sun.shadow.camera.right = 24
+    sun.shadow.camera.top = 24
+    sun.shadow.camera.bottom = -24
     this.scene.add(sun)
 
-    // Colored PCB Point Lights (RAM neon & CPU socket)
-    const ramLight = new THREE.PointLight(0x00ffff, 1.2, 16)
-    ramLight.position.set(24, 4, 16)
-    const cpuLight = new THREE.PointLight(0xffaa00, 1.5, 14)
-    cpuLight.position.set(16, 3, 12)
-    this.scene.add(ramLight, cpuLight)
+    // Colored PCB Accent Lights (CPU gold glow, GPU cyan, CD spindle blue)
+    const cpuLight = new THREE.PointLight(0xffcc00, 1.8, 16)
+    cpuLight.position.set(18, 4, 13)
+    const gpuLight = new THREE.PointLight(0x00ffff, 1.4, 16)
+    gpuLight.position.set(11, 4, 13)
+    const cdLight = new THREE.PointLight(0x3388ff, 1.6, 16)
+    cdLight.position.set(26, 4, 17)
+    this.scene.add(cpuLight, gpuLight, cdLight)
 
     // 5. PS1 Post-Processing Pass (320x240 Nearest + Bayer Dither 31.0 + Fog 0.015)
     this.ps1Pass = new PS1Pass(this.renderer)
@@ -128,16 +131,23 @@ class Game {
       bubble.style.position = 'fixed'
       bubble.style.bottom = '24px'
       bubble.style.right = '24px'
-      bubble.style.background = 'rgba(0,0,0,0.85)'
+      bubble.style.background = 'rgba(8, 16, 28, 0.92)'
       bubble.style.border = '2px solid #00ff88'
       bubble.style.color = '#00ff88'
       bubble.style.padding = '12px 18px'
-      bubble.style.borderRadius = '8px'
-      bubble.style.fontFamily = "'Space Grotesk', monospace"
+      bubble.style.borderRadius = '6px'
+      bubble.style.fontFamily = "'Bitcount Grid Double', monospace"
       bubble.style.fontSize = '12px'
-      bubble.style.maxWidth = '300px'
+      bubble.style.maxWidth = '320px'
       bubble.style.zIndex = '999'
-      bubble.textContent = 'Chut. Le jury hackathon nous regarde. Montre-leur le fun en 10 secondes.'
+      bubble.style.boxShadow = '0 0 16px rgba(0,255,136,0.3)'
+      bubble.style.display = 'flex'
+      bubble.style.alignItems = 'center'
+      bubble.style.gap = '10px'
+      bubble.innerHTML = `
+        ${PixelArt.chip}
+        <span>Chut. Le jury hackathon nous regarde. Montre-leur le fun en 10 secondes.</span>
+      `
       document.body.appendChild(bubble)
       setTimeout(() => bubble.remove(), 4500)
     }, 1500)
@@ -163,12 +173,12 @@ class Game {
 
   private updateGame(dt: number): void {
     // 1. Update Player Movement & Rubber-Hose Animation
-    const speedScale = this.heatingSystem.isPlayerInsideAny ? 0.70 : 1.0 // 70% speed when canalising
+    const speedScale = this.heatingSystem.isPlayerInsideAny ? 0.70 : 1.0
     this.player.update(dt, speedScale)
 
     const pPos = this.player.position
 
-    // 2. Dynamic 3D Camera Follow (over-the-shoulder / follow with damping)
+    // 2. Dynamic 3D Camera Follow
     const targetCamX = pPos.x + this.cameraOffset.x
     const targetCamY = pPos.y + this.cameraOffset.y
     const targetCamZ = pPos.z + this.cameraOffset.z
@@ -200,7 +210,7 @@ class Game {
     // 6. Spatial Grid Collisions (Aura Damage & Player Contacts)
     this.handleCollisions(dt, pPos.x, pPos.z)
 
-    // 7. Update Boss CyberLeek (triggered after 8 puces)
+    // 7. Update Boss CyberLeek
     if (this.boss.active) {
       const { won, shockwaveActive } = this.boss.update(dt, pPos.x, pPos.z, () => {
         // Boss horde summons
@@ -253,12 +263,10 @@ class Game {
     this.ps1Pass.triggerExplosionShake()
     this.player.root.rig.triggerImpactSquash(0.6)
 
-    // Spawn green energy gems for player vacuum
     this.progressionSystem.spawnGem(x, z)
     this.progressionSystem.spawnGem(x + 0.8, z)
     this.progressionSystem.spawnGem(x - 0.8, z)
 
-    // Check if 8 puces completed -> Spawn Boss CyberLeek
     if (this.heatingSystem.isAllHeated() && !this.boss.active) {
       this.boss.spawn()
     }
@@ -287,7 +295,6 @@ class Game {
       // Player Aura Burn / Knockback
       if (distSq <= auraRadSq) {
         const dist = Math.max(0.1, Math.sqrt(distSq))
-        // Knockback away from player
         inst.x -= (dx / dist) * 8.0 * dt
         inst.z -= (dz / dist) * 8.0 * dt
 
