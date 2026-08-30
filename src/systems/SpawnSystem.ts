@@ -34,7 +34,7 @@ export class SpawnSystem {
   private spawnInterval = 1.4
 
   constructor(scene: THREE.Scene) {
-    // 1. BTC Full Character Compound & Material (with high-contrast texture face)
+    // 1. BTC Full Character Compound & Material
     const btcGeo = this.createBtcFullCharacterGeometry()
     const btcTex = CryptoTextureGenerator.createBtcTexture()
     const btcMat = new THREE.MeshLambertMaterial({
@@ -52,7 +52,7 @@ export class SpawnSystem {
       flatShading: true,
     })
 
-    // 3. PEPE Full Character Compound & Material (Hands properly positioned at chest level)
+    // 3. PEPE Full Character Compound & Material
     const pepeGeo = this.createPepeFullCharacterGeometry()
     const pepeTex = CryptoTextureGenerator.createPepeTexture()
     const pepeMat = new THREE.MeshLambertMaterial({
@@ -107,37 +107,43 @@ export class SpawnSystem {
   private createBtcFullCharacterGeometry(): THREE.BufferGeometry {
     const parts: THREE.BufferGeometry[] = []
 
-    // 1. Main Coin Body with Textured UV Face
-    const coin = new THREE.CylinderGeometry(0.9, 0.9, 0.35, 16)
-    coin.rotateX(Math.PI / 2)
-    coin.translate(0, 1.2, 0)
-    parts.push(coin)
+    // 1. Upright Circle Front Face Disk (Naturally upright UVs: U in [0,1], V in [0,1])
+    const frontFace = new THREE.CircleGeometry(0.92, 24)
+    frontFace.translate(0, 1.2, 0.18)
+    parts.push(frontFace)
 
-    // 2. Two Rubber-Hose Legs (mapped to orange UV (0.04, 0.95))
+    // 2. Coin Rim and Back Cylinder (Solid orange UVs: (0.04, 0.95))
+    const coinBody = setSolidUVs(new THREE.CylinderGeometry(0.9, 0.9, 0.35, 20), 0.04, 0.95)
+    coinBody.rotateX(Math.PI / 2)
+    coinBody.translate(0, 1.2, 0)
+    parts.push(coinBody)
+
+    // 3. Two Rubber-Hose Legs (Solid orange UVs)
     const legL = setSolidUVs(new THREE.CylinderGeometry(0.1, 0.1, 0.6, 6), 0.04, 0.95)
     legL.translate(-0.35, 0.5, 0)
     const legR = setSolidUVs(new THREE.CylinderGeometry(0.1, 0.1, 0.6, 6), 0.04, 0.95)
     legR.translate(0.35, 0.5, 0)
     parts.push(legL, legR)
 
-    // 3. Two Big Cartoon Boots (mapped to dark navy UV (0.95, 0.04))
+    // 4. Two Big Cartoon Boots (Solid dark charcoal UVs: (0.95, 0.04))
     const bootL = setSolidUVs(new THREE.BoxGeometry(0.38, 0.3, 0.58), 0.95, 0.04)
     bootL.translate(-0.35, 0.15, 0.1)
     const bootR = setSolidUVs(new THREE.BoxGeometry(0.38, 0.3, 0.58), 0.95, 0.04)
     bootR.translate(0.35, 0.15, 0.1)
     parts.push(bootL, bootR)
 
-    // 4. Boxing Arms & Big White Boxing Gloves (mapped to white UV (0.04, 0.04))
+    // 5. Boxing Arms & Big White Boxing Gloves (Solid white UVs: (0.04, 0.04))
     const armL = setSolidUVs(new THREE.CylinderGeometry(0.09, 0.09, 0.65, 6), 0.04, 0.95)
     armL.rotateZ(Math.PI / 3)
     armL.translate(-0.9, 1.05, 0.15)
     const armR = setSolidUVs(new THREE.CylinderGeometry(0.09, 0.09, 0.65, 6), 0.04, 0.95)
     armR.rotateZ(-Math.PI / 3)
     armR.translate(0.9, 1.05, 0.15)
-    const gloveL = setSolidUVs(new THREE.SphereGeometry(0.32, 8, 8), 0.04, 0.04)
-    gloveL.translate(-1.2, 1.15, 0.45)
-    const gloveR = setSolidUVs(new THREE.SphereGeometry(0.32, 8, 8), 0.04, 0.04)
-    gloveR.translate(1.2, 1.15, 0.45)
+
+    const gloveL = setSolidUVs(new THREE.SphereGeometry(0.35, 8, 8), 0.04, 0.04)
+    gloveL.translate(-1.25, 1.15, 0.45)
+    const gloveR = setSolidUVs(new THREE.SphereGeometry(0.35, 8, 8), 0.04, 0.04)
+    gloveR.translate(1.25, 1.15, 0.45)
     parts.push(armL, armR, gloveL, gloveR)
 
     const merged = BufferGeometryUtils.mergeGeometries(parts)
@@ -147,13 +153,18 @@ export class SpawnSystem {
   private createDogeFullCharacterGeometry(): THREE.BufferGeometry {
     const parts: THREE.BufferGeometry[] = []
 
-    // 1. Main Coin Body
-    const coin = new THREE.CylinderGeometry(0.75, 0.75, 0.3, 16)
-    coin.rotateX(Math.PI / 2)
-    coin.translate(0, 1.0, 0)
-    parts.push(coin)
+    // 1. Upright Circle Front Face Disk (Shiba Inu face + Ð symbol)
+    const frontFace = new THREE.CircleGeometry(0.8, 24)
+    frontFace.translate(0, 1.0, 0.16)
+    parts.push(frontFace)
 
-    // 2. Shiba Inu Triangular Ears on Top (mapped to yellow UV (0.04, 0.95))
+    // 2. Coin Body
+    const coinBody = setSolidUVs(new THREE.CylinderGeometry(0.78, 0.78, 0.3, 20), 0.04, 0.95)
+    coinBody.rotateX(Math.PI / 2)
+    coinBody.translate(0, 1.0, 0)
+    parts.push(coinBody)
+
+    // 3. Shiba Inu Triangular Ears on Top (Solid yellow UVs)
     const earL = setSolidUVs(new THREE.ConeGeometry(0.28, 0.55, 4), 0.04, 0.95)
     earL.rotateZ(0.35)
     earL.translate(-0.48, 1.8, 0)
@@ -162,7 +173,7 @@ export class SpawnSystem {
     earR.translate(0.48, 1.8, 0)
     parts.push(earL, earR)
 
-    // 3. Legs & Paws (mapped to dark brown UV (0.95, 0.04) and white (0.04, 0.04))
+    // 4. Legs & Feet
     const legL = setSolidUVs(new THREE.CylinderGeometry(0.09, 0.09, 0.5, 6), 0.04, 0.95)
     legL.translate(-0.3, 0.45, 0)
     const legR = setSolidUVs(new THREE.CylinderGeometry(0.09, 0.09, 0.5, 6), 0.04, 0.95)
@@ -173,11 +184,11 @@ export class SpawnSystem {
     pawR.translate(0.3, 0.15, 0.1)
     parts.push(legL, legR, pawL, pawR)
 
-    // 4. Front Boxing Paws (White gloves)
-    const armL = setSolidUVs(new THREE.SphereGeometry(0.25, 6, 6), 0.04, 0.04)
-    armL.translate(-0.8, 0.9, 0.35)
-    const armR = setSolidUVs(new THREE.SphereGeometry(0.25, 6, 6), 0.04, 0.04)
-    armR.translate(0.8, 0.9, 0.35)
+    // 5. Front White Boxing Paws
+    const armL = setSolidUVs(new THREE.SphereGeometry(0.28, 6, 6), 0.04, 0.04)
+    armL.translate(-0.85, 0.9, 0.35)
+    const armR = setSolidUVs(new THREE.SphereGeometry(0.28, 6, 6), 0.04, 0.04)
+    armR.translate(0.85, 0.9, 0.35)
     parts.push(armL, armR)
 
     const merged = BufferGeometryUtils.mergeGeometries(parts)
@@ -187,20 +198,25 @@ export class SpawnSystem {
   private createPepeFullCharacterGeometry(): THREE.BufferGeometry {
     const parts: THREE.BufferGeometry[] = []
 
-    // 1. Main Frog Coin Body
-    const coin = new THREE.CylinderGeometry(0.8, 0.8, 0.3, 16)
-    coin.rotateX(Math.PI / 2)
-    coin.translate(0, 1.0, 0)
-    parts.push(coin)
+    // 1. Upright Circle Front Face Disk (Frog face with big eyes and red lips)
+    const frontFace = new THREE.CircleGeometry(0.85, 24)
+    frontFace.translate(0, 1.0, 0.16)
+    parts.push(frontFace)
 
-    // 2. Large Bulging Frog Eyeballs on Top (mapped to white UV (0.04, 0.04))
-    const eyeL = setSolidUVs(new THREE.SphereGeometry(0.32, 8, 8), 0.04, 0.04)
+    // 2. Main Frog Coin Body
+    const coinBody = setSolidUVs(new THREE.CylinderGeometry(0.82, 0.82, 0.3, 20), 0.04, 0.95)
+    coinBody.rotateX(Math.PI / 2)
+    coinBody.translate(0, 1.0, 0)
+    parts.push(coinBody)
+
+    // 3. Large Bulging Frog Eyeballs on Top (Solid green UVs)
+    const eyeL = setSolidUVs(new THREE.SphereGeometry(0.32, 8, 8), 0.04, 0.95)
     eyeL.translate(-0.42, 1.85, 0.05)
-    const eyeR = setSolidUVs(new THREE.SphereGeometry(0.32, 8, 8), 0.04, 0.04)
+    const eyeR = setSolidUVs(new THREE.SphereGeometry(0.32, 8, 8), 0.04, 0.95)
     eyeR.translate(0.42, 1.85, 0.05)
     parts.push(eyeL, eyeR)
 
-    // 3. Spring Legs & Webbed Feet (mapped to dark green (0.95, 0.04))
+    // 4. Spring Legs & Webbed Feet
     const legL = setSolidUVs(new THREE.CylinderGeometry(0.08, 0.08, 0.55, 6), 0.04, 0.95)
     legL.translate(-0.35, 0.45, 0)
     const legR = setSolidUVs(new THREE.CylinderGeometry(0.08, 0.08, 0.55, 6), 0.04, 0.95)
@@ -211,17 +227,17 @@ export class SpawnSystem {
     footR.translate(0.35, 0.1, 0.15)
     parts.push(legL, legR, footL, footR)
 
-    // 4. Arms & White Boxing Gloves — FIXED POSITION at chest/waist level (NOT in the head!)
+    // 5. Arms & White Boxing Gloves — Positioned properly at chest height
     const armL = setSolidUVs(new THREE.CylinderGeometry(0.08, 0.08, 0.55, 6), 0.04, 0.95)
     armL.rotateZ(Math.PI / 3)
     armL.translate(-0.8, 0.75, 0.2)
     const armR = setSolidUVs(new THREE.CylinderGeometry(0.08, 0.08, 0.55, 6), 0.04, 0.95)
     armR.rotateZ(-Math.PI / 3)
     armR.translate(0.8, 0.75, 0.2)
-    const gloveL = setSolidUVs(new THREE.SphereGeometry(0.28, 8, 8), 0.04, 0.04)
-    gloveL.translate(-1.1, 0.85, 0.45)
-    const gloveR = setSolidUVs(new THREE.SphereGeometry(0.28, 8, 8), 0.04, 0.04)
-    gloveR.translate(1.1, 0.85, 0.45)
+    const gloveL = setSolidUVs(new THREE.SphereGeometry(0.32, 8, 8), 0.04, 0.04)
+    gloveL.translate(-1.15, 0.85, 0.45)
+    const gloveR = setSolidUVs(new THREE.SphereGeometry(0.32, 8, 8), 0.04, 0.04)
+    gloveR.translate(1.15, 0.85, 0.45)
     parts.push(armL, armR, gloveL, gloveR)
 
     const merged = BufferGeometryUtils.mergeGeometries(parts)
@@ -417,8 +433,9 @@ export class SpawnSystem {
       const trotBounce = Math.abs(Math.sin(inst.animTime)) * 0.22
       const trotSquash = 1.0 + Math.sin(inst.animTime * 2) * 0.12
 
-      // Boxing Combo Attack Surge (Rapid 1-2 punch combo when close)
-      const punchOffset = isAttacking ? Math.sin(inst.animTime * 2.2) * 0.35 : 0
+      // Melee Punch Combo & Body Lunge
+      const punchOffset = isAttacking ? Math.sin(inst.animTime * 2.5) * 0.55 : 0
+      const bodyLungeX = isAttacking ? Math.sin(inst.animTime * 2.5) * 0.35 : 0.15
 
       this.dummy.position.set(
         inst.x + Math.sin(inst.rotationY) * punchOffset,
@@ -426,7 +443,8 @@ export class SpawnSystem {
         inst.z + Math.cos(inst.rotationY) * punchOffset
       )
       this.dummy.rotation.y = inst.rotationY
-      this.dummy.rotation.z = Math.sin(inst.animTime) * (isAttacking ? 0.25 : 0.15)
+      this.dummy.rotation.x = bodyLungeX
+      this.dummy.rotation.z = Math.sin(inst.animTime) * (isAttacking ? 0.3 : 0.12)
       this.dummy.scale.set(1.0 / trotSquash, trotSquash, 1.0 / trotSquash)
       this.dummy.updateMatrix()
 

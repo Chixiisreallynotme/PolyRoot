@@ -124,34 +124,6 @@ class Game {
         this.ps1Pass.triggerGlitch()
       }
     })
-
-    // Jury 10s watcher (Break E1)
-    setTimeout(() => {
-      const bubble = document.createElement('div')
-      bubble.id = 'fourth-wall-bubble'
-      bubble.style.position = 'fixed'
-      bubble.style.bottom = '24px'
-      bubble.style.right = '24px'
-      bubble.style.background = 'rgba(8, 16, 28, 0.92)'
-      bubble.style.border = '2px solid #00ff88'
-      bubble.style.color = '#00ff88'
-      bubble.style.padding = '12px 18px'
-      bubble.style.borderRadius = '6px'
-      bubble.style.fontFamily = "'Bitcount Grid Double', monospace"
-      bubble.style.fontSize = '12px'
-      bubble.style.maxWidth = '320px'
-      bubble.style.zIndex = '999'
-      bubble.style.boxShadow = '0 0 16px rgba(0,255,136,0.3)'
-      bubble.style.display = 'flex'
-      bubble.style.alignItems = 'center'
-      bubble.style.gap = '10px'
-      bubble.innerHTML = `
-        ${PixelArt.chip}
-        <span>Chut. Le jury hackathon nous regarde. Montre-leur le fun en 10 secondes.</span>
-      `
-      document.body.appendChild(bubble)
-      setTimeout(() => bubble.remove(), 4500)
-    }, 1500)
   }
 
   private animate = (): void => {
@@ -174,7 +146,12 @@ class Game {
   private updateGame(dt: number): void {
     // 1. Update Player Movement, Jump & Auto-Aim
     const speedScale = this.heatingSystem.isPlayerInsideAny ? 0.70 : 1.0
-    this.player.update(dt, speedScale, this.spawnSystem.instances)
+    this.player.update(
+      dt,
+      speedScale,
+      this.spawnSystem.instances,
+      (x, z) => this.motherboard.getFloorHeight(x, z)
+    )
 
     const pPos = this.player.position
 

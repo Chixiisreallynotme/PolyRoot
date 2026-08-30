@@ -145,7 +145,12 @@ export class Player {
     SoundSystem.playJump()
   }
 
-  update(dt: number, speedScale = 1.0, enemies?: { x: number; z: number; active: boolean }[]): void {
+  update(
+    dt: number,
+    speedScale = 1.0,
+    enemies?: { x: number; z: number; active: boolean }[],
+    getFloorHeight?: (x: number, z: number) => number
+  ): void {
     if (this.stats.dashTimer > 0) this.stats.dashTimer -= dt
     if (this.stats.iFrames > 0) {
       this.stats.iFrames -= dt
@@ -184,24 +189,34 @@ export class Player {
     this.group.position.x += this.velocity.x * dt
     this.group.position.z += this.velocity.z * dt
 
-    // Jump Physics
+    // 3D Platform & Jump Vertical Physics
+    const targetFloorY = getFloorHeight ? getFloorHeight(this.group.position.x, this.group.position.z) : 0
+
     if (this.stats.isJumping) {
       this.root.group.position.y += this.stats.jumpVy * dt
       this.stats.jumpVy -= 22.0 * dt
 
-      if (this.root.group.position.y <= 0) {
-        this.root.group.position.y = 0
+      if (this.root.group.position.y <= targetFloorY) {
+        this.root.group.position.y = targetFloorY
         this.stats.isJumping = false
         this.stats.jumpVy = 0
         this.root.rig.triggerImpactSquash(0.3)
       }
-
-      const shadowScale = Math.max(0.4, 1.0 - this.root.group.position.y * 0.25)
-      this.shadowMesh.scale.set(shadowScale, 1, shadowScale)
     } else {
-      this.root.group.position.y = 0
-      this.shadowMesh.scale.set(1, 1, 1)
+      if (this.root.group.position.y > targetFloorY) {
+        this.root.group.position.y -= 18.0 * dt
+        if (this.root.group.position.y < targetFloorY) {
+          this.root.group.position.y = targetFloorY
+          this.root.rig.triggerImpactSquash(0.2)
+        }
+      } else if (this.root.group.position.y < targetFloorY) {
+        this.root.group.position.y = targetFloorY
+      }
     }
+
+    const shadowScale = Math.max(0.4, 1.0 - (this.root.group.position.y - targetFloorY) * 0.25)
+    this.shadowMesh.scale.set(shadowScale, 1, shadowScale)
+    this.shadowMesh.position.y = targetFloorY + 0.02
 
     this.group.position.x = Math.max(2.0, Math.min(46.0, this.group.position.x))
     this.group.position.z = Math.max(2.0, Math.min(34.0, this.group.position.z))
