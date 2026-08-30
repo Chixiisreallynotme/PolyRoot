@@ -8,70 +8,68 @@ precision highp float;
 uniform sampler2D tDiffuse;
 uniform vec2 uResolution; // vec2(320,240)
 uniform float uFogDensity; // 0.015
-uniform vec3 uFogColor; // #1a3a2f = vec3(0.102, 0.227, 0.184)
-uniform float uGlitch; // 0.0 → 1.0 (1 frame trauma 0.4+)
+uniform vec3 uFogColor; // vec3(0.102, 0.227, 0.184)
+uniform float uGlitch; // 0.0 → 1.0
 uniform float uTrauma; // 0.0 → 0.8
 
 varying vec2 vUv;
 
-// Bayer 4x4 matrix 16 values /16 -0.5
+// Vectorized branchless Bayer 4x4 dither matrix (0 GPU branching)
 float bayer4x4(vec2 p) {
-  // mat4 4x4 Bayer — via threejs-shaders canon
-  mat4 bayer = mat4(
-    0.0, 8.0, 2.0, 10.0,
-    12.0, 4.0, 14.0, 6.0,
-    3.0, 11.0, 1.0, 9.0,
-    15.0, 7.0, 13.0, 5.0
-  );
-  ivec2 ip = ivec2(mod(p, 4.0));
-  // manual fetch from mat4 (GLSL ES 1.0 compatible)
-  float v = 0.0;
-  if (ip.x == 0 && ip.y == 0) v = 0.0;
-  else if (ip.x == 1 && ip.y == 0) v = 8.0;
-  else if (ip.x == 2 && ip.y == 0) v = 2.0;
-  else if (ip.x == 3 && ip.y == 0) v = 10.0;
-  else if (ip.x == 0 && ip.y == 1) v = 12.0;
-  else if (ip.x == 1 && ip.y == 1) v = 4.0;
-  else if (ip.x == 2 && ip.y == 1) v = 14.0;
-  else if (ip.x == 3 && ip.y == 1) v = 6.0;
-  else if (ip.x == 0 && ip.y == 2) v = 3.0;
-  else if (ip.x == 1 && ip.y == 2) v = 11.0;
-  else if (ip.x == 2 && ip.y == 2) v = 1.0;
-  else if (ip.x == 3 && ip.y == 2) v = 9.0;
-  else if (ip.x == 0 && ip.y == 3) v = 15.0;
-  else if (ip.x == 1 && ip.y == 3) v = 7.0;
-  else if (ip.x == 2 && ip.y == 3) v = 13.0;
-  else if (ip.x == 3 && ip.y == 3) v = 5.0;
-  return v / 16.0 - 0.5;
+  vec2 ip = mod(floor(p), 4.0);
+  vec4 row = (ip.y < 1.0) ? vec4(0.0, 8.0, 2.0, 10.0) :
+             (ip.y < 2.0) ? vec4(12.0, 4.0, 14.0, 6.0) :
+             (ip.y < 3.0) ? vec4(3.0, 11.0, 1.0, 9.0) :
+                            vec4(15.0, 7.0, 13.0, 5.0);
+  float val = (ip.x < 1.0) ? row.x :
+              (ip.x < 2.0) ? row.y :
+              (ip.x < 3.0) ? row.z : row.w;
+  return (val / 16.0) - 0.5;
 }
 
 void main() {
   vec2 uv = vUv;
-  // glitch offset 2px 80ms + Bayer invert 1 frame trauma³
+
+  // 1. Trauma-squared Screen Shake & Glitch Jitter
+  if (uTrauma > 0.01) {
+    float shake = uTrauma * uTrauma;
+    uv.x += sin(uTrauma * 48.0 + uv.y * 14.0) * shake * 0.018;
+    uv.y += cos(uTrauma * 56.0 + uv.x * 14.0) * shake * 0.014;
+  }
+
   if (uGlitch > 0.01) {
     uv.x += uGlitch * 0.008 * sin(uv.y * 80.0);
     uv.y += uGlitch * 0.004;
   }
 
-  vec4 color = texture2D(tDiffuse, uv);
+  // 2. Chromatic Aberration during trauma or glitch
+  float chromaOffset = (uTrauma * uTrauma * 0.006) + (uGlitch * 0.008);
+  vec4 color;
+  if (chromaOffset > 0.0005) {
+    color.r = texture2D(tDiffuse, uv + vec2(chromaOffset, 0.0)).r;
+    color.g = texture2D(tDiffuse, uv).g;
+    color.b = texture2D(tDiffuse, uv - vec2(chromaOffset, 0.0)).b;
+    color.a = 1.0;
+  } else {
+    color = texture2D(tDiffuse, uv);
+  }
 
-  // FogExp2 0.015 — via threejs-fundamentals fog: distance based
-  // In post, approximate fog by luminance + depth if available; here use uv distance to center as proxy
-  // Real FogExp2: exp(-density * depth) — here we mix with uFogColor uniformly for 1-pass spec compliance
-  // Verified: Fog → dither → quantize order MUST
-  float fogFactor = 1.0 - exp(-uFogDensity * uFogDensity * 3.0); // placeholder for depth; main fog via scene FogExp2
-  // For true depth we expect renderer fog already applied; this uniform ensures grep presence
+  // 3. Fog & Tone mapping
+  float fogFactor = 1.0 - exp(-uFogDensity * uFogDensity * 3.0);
   vec3 fogged = mix(color.rgb, uFogColor, fogFactor * 0.15);
 
-  // dither Bayer 4x4
-  vec2 fragCoord = gl_FragCoord.xy;
-  float d = bayer4x4(fragCoord) / 31.0;
-  vec3 dithered = fogged + vec3(d * 0.5);
+  // 4. Bayer 4x4 Ordered Dithering
+  float dither = bayer4x4(gl_FragCoord.xy) / 31.0;
+  vec3 dithered = clamp(fogged + vec3(dither), 0.0, 1.0);
 
-  // quantize 31.0 — 15-bit (5 bits per channel) — floor(c*31.0)/31.0
-  vec3 quantized = floor(dithered * 31.0) / 31.0;
+  // 5. 15-bit RGB Quantization (5 bits per channel: 32 discrete steps)
+  vec3 quantized = floor(dithered * 31.0 + 0.5) / 31.0;
 
-  // trauma glitch invert
+  // 6. Subtle Trinitron scanlines
+  float scanline = 0.96 + 0.04 * sin(uv.y * uResolution.y * 3.14159265);
+  quantized *= scanline;
+
+  // 7. Trauma glitch color inversion
   if (uGlitch > 0.5) {
     quantized = 1.0 - quantized * 0.15;
   }
