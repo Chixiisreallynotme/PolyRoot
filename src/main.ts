@@ -14,6 +14,7 @@ import { ProgressionSystem } from './systems/ProgressionSystem'
 import { FourthWall } from './systems/FourthWall'
 import { ParticleSystem } from './systems/ParticleSystem'
 import { PixelArt } from './ui/PixelArt'
+import { SoundSystem } from './audio/SoundSystem'
 
 // via threejs-fundamentals: antialias false + camera follow 3D — via threejs-psx-shader: FBO 320x240 Nearest
 // PolyRoot : Escape from PS1 — Vast PlayStation 1 Motherboard Survivor with Solid Collisions & Jump Physics
@@ -208,6 +209,7 @@ class Game {
     this.progressionSystem.update(dt, pPos.x, pPos.z, () => {
       this.player.heal(1)
       this.particleSystem.burst({ x: pPos.x, y: 0.5, z: pPos.z }, 4, 0.0, 1.0, 1.0)
+      SoundSystem.playGem()
     })
 
     // 6. Update Enemies & Projectiles
@@ -295,6 +297,7 @@ class Game {
     console.log('[juice] PUCE BOOM triggered — trauma 0.8 heavy 150ms')
     this.ps1Pass.triggerExplosionShake()
     this.player.root.rig.triggerImpactSquash(0.6)
+    SoundSystem.playPuceBoom()
 
     // Trigger Chip Explosion Shockwave & 20 fiery sparks
     this.particleSystem.explodeChip(x, z)

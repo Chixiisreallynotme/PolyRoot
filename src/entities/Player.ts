@@ -1,5 +1,6 @@
 import * as THREE from 'three'
 import { Root } from './Root'
+import { SoundSystem } from '../audio/SoundSystem'
 
 // Player entity with Jump (Space) and Dash (Shift), Plasma Cannon, and Rubber-Hose Animation
 
@@ -44,7 +45,7 @@ export class Player {
   private keys: Record<string, boolean> = {}
   private velocity = { x: 0, z: 0 }
 
-  constructor(scene: THREE.Scene, startX = 18, startZ = 13) {
+  constructor(scene: THREE.Scene, startX = 24, startZ = 18) {
     this.root = new Root()
     this.group = new THREE.Group()
     this.group.position.set(startX, 0, startZ)
@@ -72,7 +73,7 @@ export class Player {
       kills: 0,
     }
 
-    // Dynamic Ground Shadow (Scales during jump)
+    // Dynamic Ground Shadow
     const shadowGeo = new THREE.CircleGeometry(0.55, 16)
     shadowGeo.rotateX(-Math.PI / 2)
     const shadowMat = new THREE.MeshBasicMaterial({
@@ -99,7 +100,7 @@ export class Player {
     this.auraMesh.position.y = 0.03
     this.group.add(this.auraMesh)
 
-    // Build Player Plasma Projectiles Pool (Bright glowing cyan/orange plasma spheres)
+    // Player Plasma Projectiles Pool (Glowing Cyan Orbs)
     const bulletGeo = new THREE.SphereGeometry(0.28, 8, 8)
     const bulletMat = new THREE.MeshBasicMaterial({
       color: 0x00ffff,
@@ -117,11 +118,9 @@ export class Player {
   private setupControls(): void {
     window.addEventListener('keydown', (e) => {
       this.keys[e.code] = true
-      // Dash on Shift
       if ((e.code === 'ShiftLeft' || e.code === 'ShiftRight') && this.stats.dashTimer <= 0) {
         this.triggerDash()
       }
-      // Jump on Space
       if (e.code === 'Space' && !this.stats.isJumping) {
         this.triggerJump()
       }
@@ -136,13 +135,14 @@ export class Player {
     this.stats.dashDuration = 0.22
     this.stats.dashTimer = this.stats.dashCooldown
     this.root.rig.triggerImpactSquash(0.4)
-    console.log('[juice] Dash on Shift — trauma 0.4 heavy 120ms')
+    SoundSystem.playDash()
   }
 
   private triggerJump(): void {
     this.stats.isJumping = true
     this.stats.jumpVy = 7.5
     this.root.rig.triggerImpactSquash(0.25)
+    SoundSystem.playJump()
   }
 
   update(dt: number, speedScale = 1.0, enemies?: { x: number; z: number; active: boolean }[]): void {
@@ -154,7 +154,6 @@ export class Player {
       this.root.group.visible = true
     }
 
-    // Input Movement (ZQSD / WASD / Arrows)
     let dx = 0
     let dz = 0
     if (this.keys['KeyW'] || this.keys['KeyZ'] || this.keys['ArrowUp']) dz -= 1
@@ -185,19 +184,18 @@ export class Player {
     this.group.position.x += this.velocity.x * dt
     this.group.position.z += this.velocity.z * dt
 
-    // Jump Physics (Gravity & Landing)
+    // Jump Physics
     if (this.stats.isJumping) {
       this.root.group.position.y += this.stats.jumpVy * dt
-      this.stats.jumpVy -= 22.0 * dt // Gravity
+      this.stats.jumpVy -= 22.0 * dt
 
       if (this.root.group.position.y <= 0) {
         this.root.group.position.y = 0
         this.stats.isJumping = false
         this.stats.jumpVy = 0
-        this.root.rig.triggerImpactSquash(0.3) // Landing squash
+        this.root.rig.triggerImpactSquash(0.3)
       }
 
-      // Scale ground shadow with height
       const shadowScale = Math.max(0.4, 1.0 - this.root.group.position.y * 0.25)
       this.shadowMesh.scale.set(shadowScale, 1, shadowScale)
     } else {
@@ -205,37 +203,32 @@ export class Player {
       this.shadowMesh.scale.set(1, 1, 1)
     }
 
-    // Clamp inside motherboard board boundaries (48x36)
     this.group.position.x = Math.max(2.0, Math.min(46.0, this.group.position.x))
     this.group.position.z = Math.max(2.0, Math.min(34.0, this.group.position.z))
 
-    // Rotate player towards moving direction
     if (len > 0.01) {
       const targetAngle = Math.atan2(dx, dz)
       this.root.group.rotation.y = targetAngle
     }
 
-    // Update Rubber-Hose Animation
     this.root.update(dt, this.velocity, this.stats.isDashing)
 
-    // Update Aura Scale & Pulse
     const auraScale = this.stats.auraRadius / 1.5
     const pulse = 1.0 + Math.sin(Date.now() * 0.008) * 0.06
     this.auraMesh.scale.set(auraScale * pulse, 1, auraScale * pulse)
 
-    // Auto-Shoot Plasma Cannon towards closest enemy
+    // Auto-Shoot Plasma Cannon
     this.stats.shootTimer += dt
     if (this.stats.shootTimer >= this.stats.shootRate && enemies) {
       this.stats.shootTimer = 0
       this.autoFireAtClosestEnemy(enemies)
     }
 
-    // Update Player Bullets
     this.updateBullets(dt)
   }
 
   private autoFireAtClosestEnemy(enemies: { x: number; z: number; active: boolean }[]): void {
-    let closestDist = 12.0
+    let closestDist = 14.0
     let targetX = 0
     let targetZ = 0
     let found = false
@@ -259,6 +252,7 @@ export class Player {
       const dz = targetZ - pZ
       const len = Math.sqrt(dx * dx + dz * dz)
       this.spawnBullet(pX, pZ, (dx / len) * 16.0, (dz / len) * 16.0)
+      SoundSystem.playShoot()
     }
   }
 
@@ -294,6 +288,7 @@ export class Player {
     this.stats.hp = Math.max(0, this.stats.hp - amount)
     this.stats.iFrames = 0.8
     this.root.rig.triggerImpactSquash(0.5)
+    SoundSystem.playDamage()
     return true
   }
 

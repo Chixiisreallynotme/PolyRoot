@@ -41,10 +41,10 @@ export class HUD {
 
     // 2. Chrono Timer & Kills
     this.chronoEl = document.createElement('div')
-    this.chronoEl.style.fontSize = '28px'
-    this.chronoEl.style.fontWeight = '900'
+    this.chronoEl.style.fontSize = '26px'
+    this.chronoEl.style.fontWeight = '600'
     this.chronoEl.style.fontFamily = "'Bitcount Grid Double', monospace"
-    this.chronoEl.style.letterSpacing = '3px'
+    this.chronoEl.style.letterSpacing = '2px'
     this.chronoEl.style.textAlign = 'center'
     this.chronoEl.style.color = '#00ff88'
     this.chronoEl.style.textShadow = '0 0 14px rgba(0,255,136,0.6)'
@@ -60,7 +60,7 @@ export class HUD {
 
     this.container.appendChild(topBar)
 
-    // 4. Center Heating Progress Bar (shown when inside any puce)
+    // 4. Center Heating Progress Bar
     this.heatingBarEl = document.createElement('div')
     this.heatingBarEl.style.position = 'fixed'
     this.heatingBarEl.style.bottom = '85px'
@@ -86,7 +86,7 @@ export class HUD {
     heatingLabel.textContent = 'SURCHAUFFE EN COURS'
     heatingLabel.style.fontFamily = "'Bitcount Grid Double', monospace"
     heatingLabel.style.fontSize = '12px'
-    heatingLabel.style.fontWeight = '700'
+    heatingLabel.style.fontWeight = '600'
     heatingLabel.style.letterSpacing = '2px'
     heatingLabel.style.textAlign = 'center'
     heatingLabel.style.marginTop = '4px'
@@ -94,7 +94,7 @@ export class HUD {
     this.heatingBarEl.appendChild(heatingLabel)
     this.container.appendChild(this.heatingBarEl)
 
-    // 5. Dash Cooldown Indicator (Bottom Left)
+    // 5. Dash & Jump Controls Indicator (Bottom Left)
     this.dashIndicatorEl = document.createElement('div')
     this.dashIndicatorEl.style.position = 'fixed'
     this.dashIndicatorEl.style.bottom = '24px'
@@ -103,8 +103,8 @@ export class HUD {
     this.dashIndicatorEl.style.alignItems = 'center'
     this.dashIndicatorEl.style.gap = '8px'
     this.dashIndicatorEl.style.fontFamily = "'Bitcount Grid Double', monospace"
-    this.dashIndicatorEl.style.fontSize = '13px'
-    this.dashIndicatorEl.style.fontWeight = '800'
+    this.dashIndicatorEl.style.fontSize = '12px'
+    this.dashIndicatorEl.style.fontWeight = '600'
     this.dashIndicatorEl.style.letterSpacing = '1px'
     this.dashIndicatorEl.style.color = '#00ff88'
     this.dashIndicatorEl.style.background = 'rgba(8, 16, 28, 0.85)'
@@ -143,7 +143,7 @@ export class HUD {
     bossLabel.style.marginTop = '5px'
     bossLabel.innerHTML = `
       ${PixelArt.leekLogo}
-      <span style="font-family: 'Bitcount Grid Double', monospace; font-size: 13px; font-weight: 900; letter-spacing: 2px; color: #ff5566;">
+      <span style="font-family: 'Bitcount Grid Double', monospace; font-size: 13px; font-weight: 700; letter-spacing: 2px; color: #ff5566;">
         BOSS : TACTICAL CYBERLEEK [SURVIE 35s]
       </span>
     `
@@ -171,19 +171,19 @@ export class HUD {
     }
     this.hpEl.innerHTML = heartsHtml
 
-    // 2. Chrono Timer + Pixel Skull Kills
+    // 2. Chrono Timer + Kills
     const m = Math.floor(timeSeconds / 60)
     const s = Math.floor(timeSeconds % 60)
     const ms = Math.floor((timeSeconds % 1) * 10)
     this.chronoEl.innerHTML = `
       ${String(m).padStart(2, '0')}:${String(s).padStart(2, '0')}.${ms}
-      <div style="font-size: 13px; font-weight: 700; color: #cbd5e0; letter-spacing: 2px; margin-top: 2px; display: flex; align-items: center; justify-content: center; gap: 4px;">
+      <div style="font-size: 12px; font-weight: 600; color: #cbd5e0; letter-spacing: 2px; margin-top: 2px; display: flex; align-items: center; justify-content: center; gap: 4px;">
         ${PixelArt.skull} KILLS: ${kills}
       </div>
     `
 
-    // 3. Puce Status Tracker (8 square pixels)
-    let pipsHtml = `<div style="font-size: 13px; font-weight: 800; color: #00ff88; letter-spacing: 2px; font-family: 'Bitcount Grid Double', monospace;">PUCES: ${pucesHeatedCount}/8</div><div style="display: flex; gap: 6px; margin-top: 4px;">`
+    // 3. Puce Status Tracker
+    let pipsHtml = `<div style="font-size: 12px; font-weight: 600; color: #00ff88; letter-spacing: 2px; font-family: 'Bitcount Grid Double', monospace;">PUCES: ${pucesHeatedCount}/8</div><div style="display: flex; gap: 6px; margin-top: 4px;">`
     for (let i = 0; i < puces.length; i++) {
       const p = puces[i]
       if (!p) continue
@@ -201,19 +201,19 @@ export class HUD {
       this.heatingBarEl.style.display = 'none'
     }
 
-    // 5. Dash Cooldown Indicator
+    // 5. Dash & Jump Controls Indicator
     if (dashTimer <= 0) {
       this.dashIndicatorEl.innerHTML = `
         ${PixelArt.lightning}
-        <span>DASH PRÊT [ESPACE]</span>
+        <span>DASH [SHIFT] | SAUT [ESPACE]</span>
       `
       this.dashIndicatorEl.style.color = '#00ff88'
       this.dashIndicatorEl.style.borderColor = '#00ff8866'
     } else {
       const pct = Math.floor(((dashCooldown - dashTimer) / dashCooldown) * 100)
       this.dashIndicatorEl.innerHTML = `
-        <div style="width: 14px; height: 14px; border: 2px solid #ffaa00; border-top-color: transparent; border-radius: 50%; animation: spin 1s linear infinite;"></div>
-        <span>RECHARGE DASH (${pct}%)</span>
+        <div style="width: 12px; height: 12px; border: 2px solid #ffaa00; border-top-color: transparent; border-radius: 50%; animation: spin 1s linear infinite;"></div>
+        <span>RECHARGE DASH (${pct}%) | SAUT [ESPACE]</span>
       `
       this.dashIndicatorEl.style.color = '#ffaa00'
       this.dashIndicatorEl.style.borderColor = '#ffaa0066'
