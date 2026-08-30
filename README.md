@@ -4,6 +4,48 @@
 
 ---
 
+## Comment Jouer (Lancement Rapide en 30s)
+
+### 1. Prérequis
+- Avoir installé **Node.js** (version 18 ou supérieure) : [https://nodejs.org/](https://nodejs.org/)
+
+### 2. Cloner et Installer
+Ouvrez un terminal (PowerShell, Command Prompt ou Bash) :
+
+```bash
+# 1. Cloner le projet
+git clone https://github.com/Chixiisreallynotme/PolyRoot.git
+cd PolyRoot
+
+# 2. Installer les dépendances
+npm install
+```
+
+### 3. Lancer le Jeu
+
+| Mode | Commande | Description |
+| :--- | :--- | :--- |
+| **Navigateur Web (Rapide)** | `npm run dev:web` | Ouvre le jeu sur **[http://localhost:5173/](http://localhost:5173/)** |
+| **Application Bureau (Desktop)** | `npm run electron` | Lance le jeu dans une fenêtre d'application native dédiée |
+
+---
+
+## Contrôles en Jeu
+
+| Touche | Action |
+| :--- | :--- |
+| **ZQSD / Flèches** | Déplacements de Root sur la carte mère |
+| **Espace** | Saut (esquiver les ondes de choc et monter sur les composants) |
+| **Maj / Shift** | Dash cybernétique rapide |
+| **Clic Gauche / Auto** | Tir des canons plasma |
+| **1, 2, 3** | Sélectionner une amélioration d'Overclock |
+| **4** | Passer l'overclock (+15% vitesse de chauffe / défi hard-mode) |
+| **M** | Activer / Couper la musique Synthwave |
+| **Échap** | Menu Pause & Paramètres |
+| **R** | Recommencer une tentative immédiatement |
+
+---
+
 ## Synopsis & Histoire
 
 **Pourquoi Root est-il coincé dans une PlayStation 1 ?**
@@ -18,13 +60,13 @@ Pour s'échapper de la console, Root doit :
 
 ---
 
-## Fonctionnalités Principales
+## Fonctionnalités & Mécaniques de Gameplay
 
 ### 1. Carte Mère PS1 PU-8 Réaliste (48m × 36m)
 - **Modélisation matérielle détaillée** : Substrat vert haute densité avec pistes dorées, châssis en plastique ABS gris moulé, processeur SOLI CPU QFP-208, GPU avec dissipateur thermique à ailettes en aluminium extrudé, puce audio SPU, mémoire BIOS SOLI, oscillateurs à quartz et condensateurs SMD.
 - **Collisions solides & Plateforming 3D** : Possibilité de monter et marcher sur le dessus des puces et dissipateurs grâce au moteur de collision et de hauteur de support.
 
-### 2. Système d'Overclock & Builds
+### 2. Système d'Overclock & Arbres d'Amélioration
 - **Pastilles de surchauffe** : Maintenez Root sur l'une des 8 puces pour charger la jauge de température. À 100%, la puce explose, libère des gemmes d'énergie et ouvre l'interface de choix d'overclock.
 - **Arbres d'amélioration** :
   - **Aura Overdrive (Branche A)** : Augmente le rayon de l'aura de Root (+35%) et la force de répulsion thermique des ennemis.
@@ -62,57 +104,22 @@ Le rang officiel (**D à S+**) n'est attribué **qu'en cas de victoire** face à
 
 ---
 
-## Contrôles
-
-| Touche | Action |
-| :--- | :--- |
-| **ZQSD / Flèches** | Déplacements sur la carte mère |
-| **Espace** | Saut (esquive des ondes de choc & accès aux toits des puces) |
-| **Maj / Shift** | Dash cybernétique rapide |
-| **Clic Gauche / Auto** | Tir des canons plasma |
-| **1, 2, 3** | Sélectionner une carte d'overclock |
-| **4** | Passer l'overclock (+15% vitesse de chauffe) |
-| **M** | Activer / Couper la musique Synthwave |
-| **Échap** | Menu Pause & Paramètres vidéo/audio |
-| **R** | Recommencer une tentative |
-
----
-
-## Installation & Lancement
-
-### Prérequis
-- **Node.js** >= 18.0.0
-- **npm** >= 9.0.0
-
-### Commandes
+## Commandes pour les Développeurs
 
 ```bash
-# 1. Cloner le dépôt
-git clone https://github.com/Chixiisreallynotme/PolyRoot.git
-cd PolyRoot
-
-# 2. Installer les dépendances
-npm install
-
-# 3. Lancer en mode Web (Navigateur)
-npm run dev:web
-
-# 4. Lancer en mode Desktop (Electron)
-npm run electron
-
-# 5. Exécuter la suite de tests unitaires (Vitest)
+# Lancer les tests unitaires (Vitest)
 npm test
 
-# 6. Vérifier les types et frontières de modules
+# Vérifier les types TypeScript et frontières de modules
 npm run check
 
-# 7. Compiler pour la production
+# Compiler l'application pour la production
 npm run build
 ```
 
 ---
 
-## Structure du Code
+## Structure du Projet
 
 ```text
 PolyRoot/
