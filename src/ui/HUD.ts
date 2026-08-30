@@ -1,142 +1,118 @@
-import { Puce } from '../entities/Puce'
-import { PixelArt } from './PixelArt'
 import { SoundSystem } from '../audio/SoundSystem'
-import { PS1_BEVEL_8PX, PS1_BEVEL_4PX, PS1_DITHER_BG } from './ChoiceUI'
+import { PixelArt } from './PixelArt'
 
-// HUD with Bitcount Grid Double font, Pixel Art Vector SVGs & PS1 Stepped Bresenham Corners (Zero emojis)
+export const PS1_DITHER_BG = `repeating-conic-gradient(#000000 0% 25%, #050b14 0% 50%) 50% / 4px 4px`
+export const PS1_BEVEL_8PX = `polygon(0 8px, 8px 0, calc(100% - 8px) 0, 100% 8px, 100% calc(100% - 8px), calc(100% - 8px) 100%, 8px 100%, 0 calc(100% - 8px))`
+export const PS1_BEVEL_4PX = `polygon(0 4px, 4px 0, calc(100% - 4px) 0, 100% 4px, 100% calc(100% - 4px), calc(100% - 4px) 100%, 4px 100%, 0 calc(100% - 4px))`
 
-// Inject HUD Keyframe Animations if not present
-if (typeof document !== 'undefined' && !document.getElementById('polyroot-hud-styles')) {
-  const style = document.createElement('style')
-  style.id = 'polyroot-hud-styles'
-  style.textContent = `
-    @keyframes pixelHeatingBlink {
-      0% {
-        background-color: #ef4444;
-        box-shadow: 0 0 14px #ef4444, inset 0 0 4px #ffffff;
-        filter: brightness(1.35);
-      }
-      100% {
-        background-color: #7f1d1d;
-        box-shadow: 0 0 4px #7f1d1d;
-        filter: brightness(0.7);
-      }
-    }
-  `
-  document.head.appendChild(style)
-}
-
-export function getHeatingSegmentColor(index: number): { color: string; isBlinking: boolean } {
-  const ratio = (index + 1) / 16
-  if (ratio <= 0.40) {
-    return { color: '#00ff88', isBlinking: false }
-  } else if (ratio <= 0.70) {
-    return { color: '#facc15', isBlinking: false }
-  } else if (ratio <= 0.90) {
-    return { color: '#f97316', isBlinking: false }
-  } else {
-    return { color: '#ef4444', isBlinking: true }
-  }
+// Discrete 16-segment 4-color palette brackets:
+// Segments 0..5 (0-40%): Green (#00ff88)
+// Segments 6..10 (40-70%): Yellow (#facc15)
+// Segments 11..13 (70-90%): Orange (#f97316)
+// Segments 14..15 (90-100%): Blinking Red (#ef4444)
+export function getHeatingSegmentColor(segmentIndex: number): { color: string; isBlinking: boolean } {
+  if (segmentIndex < 6) return { color: '#00ff88', isBlinking: false }
+  if (segmentIndex < 11) return { color: '#facc15', isBlinking: false }
+  if (segmentIndex < 14) return { color: '#f97316', isBlinking: false }
+  return { color: '#ef4444', isBlinking: true }
 }
 
 export class HUD {
   private container: HTMLDivElement
   private hpEl: HTMLDivElement
-  private chronoEl: HTMLDivElement
+  private timerEl: HTMLDivElement
   private puceTrackerEl: HTMLDivElement
   private heatingBarEl: HTMLDivElement
-  private heatingSegments: HTMLDivElement[] = []
-  private heatingLabelEl: HTMLDivElement
   private heatingHeaderPctEl: HTMLDivElement
+  private heatingSegments: HTMLDivElement[] = []
   private dashIndicatorEl: HTMLDivElement
   private bossBarEl: HTMLDivElement
-  private bossFillEl: HTMLDivElement
-  private bossLabelEl!: HTMLDivElement
+  private bossHpFillEl: HTMLDivElement
+  private bossTimerEl: HTMLDivElement
+  private bossPhaseBadgeEl: HTMLElement
   private audioToggleEl: HTMLDivElement
 
   constructor() {
     this.container = document.createElement('div')
     this.container.id = 'hud-container'
     this.container.style.position = 'fixed'
-    this.container.style.inset = '0'
+    this.container.style.top = '0'
+    this.container.style.left = '0'
+    this.container.style.width = '100vw'
+    this.container.style.height = '100vh'
     this.container.style.pointerEvents = 'none'
+    this.container.style.userSelect = 'none'
+    this.container.style.zIndex = '50'
     this.container.style.fontFamily = "'Bitcount Grid Double', monospace"
-    this.container.style.color = '#ffffff'
-    this.container.style.padding = '18px 24px'
-    this.container.style.imageRendering = 'pixelated'
-    document.body.appendChild(this.container)
+    this.container.style.color = '#00ff88'
+    this.container.style.boxSizing = 'border-box'
 
-    // Top Bar (Health, Chrono, Puces, Audio Control)
+    // Keyframe Animation for Critical Blinking Red Segments
+    if (!document.getElementById('pixel-heating-keyframes')) {
+      const style = document.createElement('style')
+      style.id = 'pixel-heating-keyframes'
+      style.textContent = `
+        @keyframes pixelHeatingBlink {
+          0% { opacity: 1.0; filter: drop-shadow(0 0 6px #ef4444); }
+          50% { opacity: 0.15; filter: none; }
+          100% { opacity: 1.0; filter: drop-shadow(0 0 8px #ef4444); }
+        }
+      `
+      document.head.appendChild(style)
+    }
+
+    // Top Status Bar Container
     const topBar = document.createElement('div')
     topBar.style.display = 'flex'
     topBar.style.justifyContent = 'space-between'
     topBar.style.alignItems = 'flex-start'
+    topBar.style.padding = '16px 24px'
     topBar.style.width = '100%'
+    topBar.style.boxSizing = 'border-box'
 
-    // Left Column: Health Panel with PS1 Stepped Corner Frame
-    const leftCol = document.createElement('div')
-    leftCol.style.display = 'flex'
-    leftCol.style.flexDirection = 'column'
-    leftCol.style.gap = '8px'
-
+    // 1. Left: Root Core HP
     const hpOuter = document.createElement('div')
-    hpOuter.style.background = '#00ff8844'
-    hpOuter.style.padding = '2px'
+    hpOuter.style.background = '#00ff88'
     hpOuter.style.clipPath = PS1_BEVEL_8PX
-
-    const hpInner = document.createElement('div')
-    hpInner.style.background = '#0a101a'
-    hpInner.style.backgroundImage = PS1_DITHER_BG
-    hpInner.style.clipPath = PS1_BEVEL_8PX
-    hpInner.style.padding = '8px 14px'
-    hpInner.style.display = 'flex'
-    hpInner.style.flexDirection = 'column'
-    hpInner.style.gap = '4px'
-
-    const hpLabel = document.createElement('div')
-    hpLabel.textContent = 'ROOT CORE HP'
-    hpLabel.style.fontSize = '10px'
-    hpLabel.style.fontWeight = '700'
-    hpLabel.style.letterSpacing = '2px'
-    hpLabel.style.color = '#00ff88'
-    hpInner.appendChild(hpLabel)
+    hpOuter.style.padding = '2px'
+    hpOuter.style.boxShadow = '0 0 16px rgba(0,255,136,0.3)'
 
     this.hpEl = document.createElement('div')
+    this.hpEl.style.background = '#0a101a'
+    this.hpEl.style.backgroundImage = PS1_DITHER_BG
+    this.hpEl.style.clipPath = PS1_BEVEL_8PX
+    this.hpEl.style.padding = '8px 16px'
     this.hpEl.style.display = 'flex'
-    this.hpEl.style.gap = '8px'
     this.hpEl.style.alignItems = 'center'
-    hpInner.appendChild(this.hpEl)
+    this.hpEl.style.gap = '8px'
+    this.hpEl.style.fontSize = '12px'
+    this.hpEl.style.fontWeight = '700'
+    this.hpEl.style.letterSpacing = '1px'
 
-    hpOuter.appendChild(hpInner)
-    leftCol.appendChild(hpOuter)
-    topBar.appendChild(leftCol)
+    hpOuter.appendChild(this.hpEl)
+    topBar.appendChild(hpOuter)
 
-    // Center Column: Chrono Timer & Kills with PS1 Stepped Corner Box
-    const chronoOuter = document.createElement('div')
-    chronoOuter.style.background = '#00ff8844'
-    chronoOuter.style.padding = '2px'
-    chronoOuter.style.clipPath = PS1_BEVEL_8PX
+    // 2. Center: Chrono Timer & Kill Count
+    const timerOuter = document.createElement('div')
+    timerOuter.style.background = '#00ff88'
+    timerOuter.style.clipPath = PS1_BEVEL_8PX
+    timerOuter.style.padding = '2px'
+    timerOuter.style.boxShadow = '0 0 16px rgba(0,255,136,0.3)'
 
-    const chronoInner = document.createElement('div')
-    chronoInner.style.background = '#0a101a'
-    chronoInner.style.backgroundImage = PS1_DITHER_BG
-    chronoInner.style.clipPath = PS1_BEVEL_8PX
-    chronoInner.style.padding = '8px 24px'
-    chronoInner.style.textAlign = 'center'
+    this.timerEl = document.createElement('div')
+    this.timerEl.style.background = '#0a101a'
+    this.timerEl.style.backgroundImage = PS1_DITHER_BG
+    this.timerEl.style.clipPath = PS1_BEVEL_8PX
+    this.timerEl.style.padding = '8px 24px'
+    this.timerEl.style.textAlign = 'center'
+    this.timerEl.style.fontSize = '16px'
+    this.timerEl.style.fontWeight = '900'
+    this.timerEl.style.letterSpacing = '2px'
 
-    this.chronoEl = document.createElement('div')
-    this.chronoEl.style.fontSize = '26px'
-    this.chronoEl.style.fontWeight = '700'
-    this.chronoEl.style.fontFamily = "'Bitcount Grid Double', monospace"
-    this.chronoEl.style.letterSpacing = '2px'
-    this.chronoEl.style.color = '#00ff88'
-    this.chronoEl.style.textShadow = '0 0 14px rgba(0,255,136,0.6)'
-    chronoInner.appendChild(this.chronoEl)
+    timerOuter.appendChild(this.timerEl)
+    topBar.appendChild(timerOuter)
 
-    chronoOuter.appendChild(chronoInner)
-    topBar.appendChild(chronoOuter)
-
-    // Right Column: Puces Tracker + BGM Toggle Button
+    // 3. Right Column: Puces Overclock Tracker + Audio Toggle Badge
     const rightCol = document.createElement('div')
     rightCol.style.display = 'flex'
     rightCol.style.flexDirection = 'column'
@@ -144,9 +120,10 @@ export class HUD {
     rightCol.style.gap = '8px'
 
     const puceOuter = document.createElement('div')
-    puceOuter.style.background = '#00ff8844'
-    puceOuter.style.padding = '2px'
+    puceOuter.style.background = '#00ff88'
     puceOuter.style.clipPath = PS1_BEVEL_8PX
+    puceOuter.style.padding = '2px'
+    puceOuter.style.boxShadow = '0 0 16px rgba(0,255,136,0.3)'
 
     this.puceTrackerEl = document.createElement('div')
     this.puceTrackerEl.style.background = '#0a101a'
@@ -161,7 +138,7 @@ export class HUD {
     puceOuter.appendChild(this.puceTrackerEl)
     rightCol.appendChild(puceOuter)
 
-    // Audio BGM Toggle Badge (Interactive with pointer events enabled)
+    // Audio BGM Toggle Badge
     this.audioToggleEl = document.createElement('div')
     this.audioToggleEl.style.pointerEvents = 'auto'
     this.audioToggleEl.style.cursor = 'pointer'
@@ -200,42 +177,42 @@ export class HUD {
     topBar.appendChild(rightCol)
     this.container.appendChild(topBar)
 
-    // 4. Center Heating Progress Bar with 16-Segment Discrete Pixel Blocks & PS1 Stepped Frame
+    // 4. Center Minimalist Heating Progress Bar with Sharp Square Pixel Blocks
     this.heatingBarEl = document.createElement('div')
     this.heatingBarEl.id = 'hud-heating-bar'
     this.heatingBarEl.style.position = 'fixed'
-    this.heatingBarEl.style.bottom = '85px'
+    this.heatingBarEl.style.bottom = '80px'
     this.heatingBarEl.style.left = '50%'
     this.heatingBarEl.style.transform = 'translateX(-50%)'
-    this.heatingBarEl.style.width = '380px'
-    this.heatingBarEl.style.background = '#0a101a'
-    this.heatingBarEl.style.backgroundImage = PS1_DITHER_BG
+    this.heatingBarEl.style.width = '280px'
+    this.heatingBarEl.style.background = '#050a12'
     this.heatingBarEl.style.border = '2px solid #00ff88'
-    this.heatingBarEl.style.clipPath = PS1_BEVEL_8PX
-    this.heatingBarEl.style.padding = '10px 14px'
-    this.heatingBarEl.style.boxShadow = '0 0 24px rgba(0,255,136,0.35)'
+    this.heatingBarEl.style.borderRadius = '0px'
+    this.heatingBarEl.style.padding = '6px 10px'
+    this.heatingBarEl.style.boxShadow = '0 0 20px rgba(0,255,136,0.4)'
     this.heatingBarEl.style.display = 'none'
+    this.heatingBarEl.style.boxSizing = 'border-box'
 
-    // Heating Bar Header (Title & Percentage)
+    // Minimal Header (Left: SURCHAUFFE, Right: [ 0% ])
     const heatingHeader = document.createElement('div')
     heatingHeader.style.display = 'flex'
     heatingHeader.style.justifyContent = 'space-between'
     heatingHeader.style.alignItems = 'center'
-    heatingHeader.style.marginBottom = '6px'
+    heatingHeader.style.marginBottom = '5px'
 
     const heatingHeaderTitle = document.createElement('div')
-    heatingHeaderTitle.textContent = 'PUCE SOLDER CORE // SURCHAUFFE'
+    heatingHeaderTitle.textContent = 'SURCHAUFFE'
     heatingHeaderTitle.style.fontFamily = "'Bitcount Grid Double', monospace"
-    heatingHeaderTitle.style.fontSize = '10px'
-    heatingHeaderTitle.style.fontWeight = '700'
-    heatingHeaderTitle.style.letterSpacing = '1.5px'
+    heatingHeaderTitle.style.fontSize = '11px'
+    heatingHeaderTitle.style.fontWeight = '900'
+    heatingHeaderTitle.style.letterSpacing = '1px'
     heatingHeaderTitle.style.color = '#94a3b8'
     heatingHeader.appendChild(heatingHeaderTitle)
 
     this.heatingHeaderPctEl = document.createElement('div')
     this.heatingHeaderPctEl.textContent = '[ 0% ]'
     this.heatingHeaderPctEl.style.fontFamily = "'Bitcount Grid Double', monospace"
-    this.heatingHeaderPctEl.style.fontSize = '11px'
+    this.heatingHeaderPctEl.style.fontSize = '12px'
     this.heatingHeaderPctEl.style.fontWeight = '900'
     this.heatingHeaderPctEl.style.letterSpacing = '1px'
     this.heatingHeaderPctEl.style.color = '#00ff88'
@@ -243,36 +220,17 @@ export class HUD {
 
     this.heatingBarEl.appendChild(heatingHeader)
 
-    // Segmented Tick Marks Calibration Line (0%, 40%, 70%, 90%, 100%)
-    const tickRuler = document.createElement('div')
-    tickRuler.style.display = 'flex'
-    tickRuler.style.justifyContent = 'space-between'
-    tickRuler.style.alignItems = 'flex-end'
-    tickRuler.style.padding = '0 2px'
-    tickRuler.style.marginBottom = '4px'
-    tickRuler.style.fontSize = '8px'
-    tickRuler.style.fontWeight = '700'
-    tickRuler.style.letterSpacing = '1px'
-    tickRuler.innerHTML = `
-      <span style="color: #00ff88;">0%</span>
-      <span style="color: #facc15;">40%</span>
-      <span style="color: #f97316;">70%</span>
-      <span style="color: #ef4444;">90%</span>
-      <span style="color: #ef4444;">MAX</span>
-    `
-    this.heatingBarEl.appendChild(tickRuler)
-
-    // 16-Segment Discrete Pixel Track Container
+    // 16 Discrete Sharp Square Pixel Blocks Track
     const heatingTrack = document.createElement('div')
     heatingTrack.id = 'hud-heating-track'
     heatingTrack.style.display = 'flex'
     heatingTrack.style.gap = '3px'
     heatingTrack.style.width = '100%'
-    heatingTrack.style.height = '18px'
-    heatingTrack.style.background = '#050b14'
-    heatingTrack.style.clipPath = PS1_BEVEL_4PX
-    heatingTrack.style.border = '1px solid #1e293b'
-    heatingTrack.style.padding = '3px'
+    heatingTrack.style.height = '14px'
+    heatingTrack.style.background = '#02060c'
+    heatingTrack.style.border = '1px solid #132238'
+    heatingTrack.style.borderRadius = '0px'
+    heatingTrack.style.padding = '2px'
     heatingTrack.style.boxSizing = 'border-box'
 
     this.heatingSegments = []
@@ -282,31 +240,19 @@ export class HUD {
       seg.style.flex = '1'
       seg.style.height = '100%'
       seg.style.background = '#08101a'
-      seg.style.border = '1px solid #152238'
-      seg.style.clipPath = PS1_BEVEL_4PX
+      seg.style.borderRadius = '0px'
       seg.style.opacity = '0.35'
       seg.style.boxSizing = 'border-box'
+      seg.style.imageRendering = 'pixelated'
       seg.style.transition = 'background 0.05s ease, opacity 0.05s ease, box-shadow 0.05s ease'
       heatingTrack.appendChild(seg)
       this.heatingSegments.push(seg)
     }
     this.heatingBarEl.appendChild(heatingTrack)
 
-    // Heating Status Label
-    this.heatingLabelEl = document.createElement('div')
-    this.heatingLabelEl.textContent = 'SURCHAUFFE DU SUBSTRAT EN COURS'
-    this.heatingLabelEl.style.fontFamily = "'Bitcount Grid Double', monospace"
-    this.heatingLabelEl.style.fontSize = '11px'
-    this.heatingLabelEl.style.fontWeight = '700'
-    this.heatingLabelEl.style.letterSpacing = '2px'
-    this.heatingLabelEl.style.textAlign = 'center'
-    this.heatingLabelEl.style.marginTop = '8px'
-    this.heatingLabelEl.style.color = '#00ff88'
-    this.heatingBarEl.appendChild(this.heatingLabelEl)
-
     this.container.appendChild(this.heatingBarEl)
 
-    // 5. Dash & Jump Controls Indicator (Bottom Left) with PS1 Stepped Bevel
+    // 5. Dash & Jump Controls Indicator (Bottom Left)
     this.dashIndicatorEl = document.createElement('div')
     this.dashIndicatorEl.style.position = 'fixed'
     this.dashIndicatorEl.style.bottom = '24px'
@@ -321,125 +267,166 @@ export class HUD {
     this.dashIndicatorEl.style.color = '#00ff88'
     this.dashIndicatorEl.style.background = '#0a101a'
     this.dashIndicatorEl.style.backgroundImage = PS1_DITHER_BG
-    this.dashIndicatorEl.style.padding = '10px 18px'
+    this.dashIndicatorEl.style.padding = '8px 16px'
     this.dashIndicatorEl.style.clipPath = PS1_BEVEL_8PX
-    this.dashIndicatorEl.style.border = '2px solid #00ff8866'
-    this.dashIndicatorEl.style.boxShadow = '0 0 16px rgba(0,0,0,0.6)'
+    this.dashIndicatorEl.style.border = '1px solid #00ff88'
+    this.dashIndicatorEl.style.boxShadow = '0 0 12px rgba(0,255,136,0.25)'
+    this.dashIndicatorEl.innerHTML = `
+      ${PixelArt.speed}
+      <span>DASH [SHIFT] &nbsp;|&nbsp; SAUT [ESPACE]</span>
+    `
     this.container.appendChild(this.dashIndicatorEl)
 
-    // 6. Boss Survival Bar (Top Center) with PS1 Stepped Frame
+    // 6. Boss Tactical Bar (Top Center)
     this.bossBarEl = document.createElement('div')
+    this.bossBarEl.id = 'hud-boss-bar'
     this.bossBarEl.style.position = 'fixed'
-    this.bossBarEl.style.top = '78px'
+    this.bossBarEl.style.top = '16px'
     this.bossBarEl.style.left = '50%'
     this.bossBarEl.style.transform = 'translateX(-50%)'
-    this.bossBarEl.style.width = '460px'
-    this.bossBarEl.style.background = '#18080c'
+    this.bossBarEl.style.width = '480px'
+    this.bossBarEl.style.background = '#0a101a'
     this.bossBarEl.style.backgroundImage = PS1_DITHER_BG
-    this.bossBarEl.style.border = '2px solid #ff2244'
+    this.bossBarEl.style.border = '2px solid #ef4444'
     this.bossBarEl.style.clipPath = PS1_BEVEL_8PX
-    this.bossBarEl.style.padding = '8px 14px'
-    this.bossBarEl.style.boxShadow = '0 0 28px rgba(255,34,68,0.5)'
+    this.bossBarEl.style.padding = '10px 16px'
+    this.bossBarEl.style.boxShadow = '0 0 20px rgba(239, 68, 68, 0.4)'
     this.bossBarEl.style.display = 'none'
+
+    const bossHeader = document.createElement('div')
+    bossHeader.style.display = 'flex'
+    bossHeader.style.justifyContent = 'space-between'
+    bossHeader.style.alignItems = 'center'
+    bossHeader.style.marginBottom = '6px'
+
+    const bossTitle = document.createElement('div')
+    bossTitle.style.display = 'flex'
+    bossTitle.style.alignItems = 'center'
+    bossTitle.style.gap = '8px'
+    bossTitle.innerHTML = `
+      ${PixelArt.leekLogo}
+      <span style="color: #ef4444; font-size: 13px; font-weight: 800; letter-spacing: 1px;">
+        BOSS : TACTICAL CYBERLEEK
+      </span>
+    `
+    bossHeader.appendChild(bossTitle)
+
+    const rightBossMeta = document.createElement('div')
+    rightBossMeta.style.display = 'flex'
+    rightBossMeta.style.alignItems = 'center'
+    rightBossMeta.style.gap = '10px'
+
+    this.bossPhaseBadgeEl = document.createElement('span')
+    this.bossPhaseBadgeEl.style.fontSize = '10px'
+    this.bossPhaseBadgeEl.style.color = '#38bdf8'
+    this.bossPhaseBadgeEl.style.fontWeight = '700'
+    this.bossPhaseBadgeEl.textContent = 'PHASE 1'
+    rightBossMeta.appendChild(this.bossPhaseBadgeEl)
+
+    this.bossTimerEl = document.createElement('div')
+    this.bossTimerEl.style.color = '#fbbf24'
+    this.bossTimerEl.style.fontSize = '14px'
+    this.bossTimerEl.style.fontWeight = '900'
+    this.bossTimerEl.textContent = '45.0s'
+    rightBossMeta.appendChild(this.bossTimerEl)
+
+    bossHeader.appendChild(rightBossMeta)
+    this.bossBarEl.appendChild(bossHeader)
 
     const bossTrack = document.createElement('div')
     bossTrack.style.width = '100%'
-    bossTrack.style.height = '14px'
-    bossTrack.style.background = '#0f0406'
+    bossTrack.style.height = '12px'
+    bossTrack.style.background = '#1e1b2e'
+    bossTrack.style.border = '1px solid #ef4444'
     bossTrack.style.clipPath = PS1_BEVEL_4PX
-    bossTrack.style.border = '1px solid #ff224455'
+    bossTrack.style.overflow = 'hidden'
 
-    this.bossFillEl = document.createElement('div')
-    this.bossFillEl.style.height = '100%'
-    this.bossFillEl.style.width = '100%'
-    this.bossFillEl.style.background = 'linear-gradient(90deg, #ff2244, #ff8800)'
-    this.bossFillEl.style.clipPath = PS1_BEVEL_4PX
-    bossTrack.appendChild(this.bossFillEl)
+    this.bossHpFillEl = document.createElement('div')
+    this.bossHpFillEl.style.width = '100%'
+    this.bossHpFillEl.style.height = '100%'
+    this.bossHpFillEl.style.background = 'linear-gradient(90deg, #ef4444, #f97316)'
+    this.bossHpFillEl.style.transition = 'width 0.1s linear'
+    bossTrack.appendChild(this.bossHpFillEl)
+
     this.bossBarEl.appendChild(bossTrack)
-
-    this.bossLabelEl = document.createElement('div')
-    this.bossLabelEl.style.display = 'flex'
-    this.bossLabelEl.style.alignItems = 'center'
-    this.bossLabelEl.style.justifyContent = 'center'
-    this.bossLabelEl.style.gap = '8px'
-    this.bossLabelEl.style.marginTop = '6px'
-    this.bossLabelEl.innerHTML = `
-      ${PixelArt.leekLogo}
-      <span style="font-family: 'Bitcount Grid Double', monospace; font-size: 13px; font-weight: 700; letter-spacing: 2px; color: #ff5566;">
-        BOSS : TACTICAL CYBERLEEK [PHASE 1 - 100%]
-      </span>
-    `
-    this.bossBarEl.appendChild(this.bossLabelEl)
     this.container.appendChild(this.bossBarEl)
 
-    // Keyboard listener for 'M' music toggle
-    window.addEventListener('keydown', (e) => {
-      if (e.key === 'm' || e.key === 'M') {
-        SoundSystem.toggleMusic()
-        this.updateAudioBadge()
-      }
-    })
+    document.body.appendChild(this.container)
   }
 
   public updateAudioBadge(): void {
+    if (!this.audioToggleEl) return
     const isPlaying = SoundSystem.isMusicPlaying()
-    this.audioToggleEl.innerHTML = isPlaying
-      ? `${PixelArt.musicOn} <span>BGM: ACTIF [M]</span>`
-      : `${PixelArt.musicOff} <span style="color: #94a3b8;">BGM: MUET [M]</span>`
+    if (isPlaying) {
+      this.audioToggleEl.innerHTML = `${PixelArt.musicOn} <span>BGM: ACTIF [M]</span>`
+      this.audioToggleEl.style.borderColor = '#00ff88'
+      this.audioToggleEl.style.color = '#00ff88'
+    } else {
+      this.audioToggleEl.innerHTML = `${PixelArt.musicOff} <span style="color: #94a3b8;">BGM: MUET [M]</span>`
+      this.audioToggleEl.style.borderColor = '#475569'
+      this.audioToggleEl.style.color = '#94a3b8'
+    }
   }
 
   update(
     hp: number,
     timeSeconds: number,
     kills: number,
-    puces: Puce[],
+    puces: { isHeated: boolean; progress: number }[],
     pucesHeatedCount: number,
     dashTimer: number,
     dashCooldown: number,
-    insidePuce: Puce | null,
+    insidePuce: { isHeated: boolean; progress: number } | null,
     bossActive: boolean,
     bossTimer: number,
     bossMaxTime: number,
-    bossHp = 100,
-    bossMaxHp = 100,
-    bossPhase: 1 | 2 | 3 = 1
+    bossHp?: number,
+    bossMaxHp?: number,
+    bossPhase?: number
   ): void {
-    // 1. Pixel Art Hearts
-    let heartsHtml = ''
+    // 1. HP Hearts (Max 3)
+    let heartsHtml = '<div style="display: flex; gap: 4px; align-items: center;">'
     for (let i = 0; i < 3; i++) {
-      heartsHtml += i < hp ? PixelArt.heartFull : PixelArt.heartEmpty
+      if (i < hp) {
+        heartsHtml += PixelArt.heartFull
+      } else {
+        heartsHtml += PixelArt.heartEmpty
+      }
     }
+    heartsHtml += '</div>'
     this.hpEl.innerHTML = heartsHtml
 
-    // 2. Chrono Timer + Kills
-    const m = Math.floor(timeSeconds / 60)
-    const s = Math.floor(timeSeconds % 60)
-    const ms = Math.floor((timeSeconds % 1) * 10)
-    this.chronoEl.innerHTML = `
-      ${String(m).padStart(2, '0')}:${String(s).padStart(2, '0')}.${ms}
-      <div style="font-size: 12px; font-weight: 700; color: #cbd5e0; letter-spacing: 2px; margin-top: 2px; display: flex; align-items: center; justify-content: center; gap: 6px;">
+    // 2. Timer & Kills
+    const mins = Math.floor(timeSeconds / 60)
+    const secs = (timeSeconds % 60).toFixed(1).padStart(4, '0')
+    this.timerEl.innerHTML = `
+      <div style="color: #00ff88; text-shadow: 0 0 8px rgba(0,255,136,0.5);">${mins.toString().padStart(2, '0')}:${secs}</div>
+      <div style="font-size: 11px; color: #94a3b8; margin-top: 2px; display: flex; align-items: center; justify-content: center; gap: 4px;">
         ${PixelArt.skull} KILLS: ${kills}
       </div>
     `
 
-    // 3. Puce Status Tracker
-    let pipsHtml = `<div style="font-size: 12px; font-weight: 700; color: #00ff88; letter-spacing: 2px; font-family: 'Bitcount Grid Double', monospace;">PUCES: ${pucesHeatedCount}/8</div><div style="display: flex; gap: 6px; margin-top: 4px;">`
+    // 3. Puces Tracker (8 Puces)
+    let pipsHtml = `<div style="display: flex; justify-content: space-between; width: 100%; font-size: 10px; color: #94a3b8; font-weight: 700; margin-bottom: 2px;">
+      <span>PUCES:</span>
+      <span style="color: ${pucesHeatedCount >= 8 ? '#00ff88' : '#f8fafc'};">${pucesHeatedCount}/8</span>
+    </div>`
+    pipsHtml += '<div style="display: flex; gap: 4px;">'
     for (let i = 0; i < puces.length; i++) {
-      const p = puces[i]
-      if (!p) continue
+      const p = puces[i]!
       const color = p.isHeated ? '#00ff88' : p.progress > 0 ? '#ffaa00' : '#1e293b'
-      pipsHtml += `<div style="width: 10px; height: 10px; background: ${color}; clip-path: ${PS1_BEVEL_4PX}; box-shadow: 0 0 6px ${color}; image-rendering: pixelated;"></div>`
+      pipsHtml += `<div style="width: 10px; height: 10px; background: ${color}; border-radius: 0px; box-shadow: 0 0 6px ${color}; image-rendering: pixelated;"></div>`
     }
     pipsHtml += '</div>'
     this.puceTrackerEl.innerHTML = pipsHtml
 
-    // 4. Inside Puce Heating Bar
+    // 4. Inside Puce Minimalist Square Pixel Heating Bar
     if (insidePuce && !insidePuce.isHeated) {
       this.heatingBarEl.style.display = 'block'
       const pct = Math.min(100, Math.floor(insidePuce.progress * 100))
       this.heatingHeaderPctEl.textContent = `[ ${pct}% ]`
 
-      // Update Segmented Level Indicators
+      // Update 16 Discrete Square Pixel Blocks
       const activeCount = Math.floor((pct / 100) * 16)
       for (let i = 0; i < 16; i++) {
         const seg = this.heatingSegments[i]
@@ -448,8 +435,7 @@ export class HUD {
           const { color, isBlinking } = getHeatingSegmentColor(i)
           seg.style.background = color
           seg.style.opacity = '1.0'
-          seg.style.borderColor = '#ffffff88'
-          seg.style.boxShadow = `0 0 8px ${color}`
+          seg.style.boxShadow = `0 0 6px ${color}`
           if (isBlinking) {
             seg.style.animation = 'pixelHeatingBlink 0.18s infinite alternate'
           } else {
@@ -458,7 +444,6 @@ export class HUD {
         } else {
           seg.style.background = '#08101a'
           seg.style.opacity = '0.35'
-          seg.style.borderColor = '#152238'
           seg.style.boxShadow = 'none'
           seg.style.animation = 'none'
         }
@@ -466,82 +451,78 @@ export class HUD {
 
       if (pct >= 90) {
         this.heatingBarEl.style.borderColor = '#ef4444'
-        this.heatingBarEl.style.boxShadow = '0 0 28px rgba(239, 68, 68, 0.65)'
-        this.heatingLabelEl.textContent = `SURCHAUFFE CRITIQUE [${pct}%] - NIVEAU 4 MAXIMUM`
-        this.heatingLabelEl.style.color = '#ef4444'
+        this.heatingBarEl.style.boxShadow = '0 0 20px rgba(239, 68, 68, 0.6)'
         this.heatingHeaderPctEl.style.color = '#ef4444'
       } else if (pct >= 70) {
         this.heatingBarEl.style.borderColor = '#f97316'
-        this.heatingBarEl.style.boxShadow = '0 0 26px rgba(249, 115, 22, 0.5)'
-        this.heatingLabelEl.textContent = `SURCHAUFFE DU SUBSTRAT [${pct}%] - NIVEAU 3 ELEVE`
-        this.heatingLabelEl.style.color = '#f97316'
+        this.heatingBarEl.style.boxShadow = '0 0 16px rgba(249, 115, 22, 0.5)'
         this.heatingHeaderPctEl.style.color = '#f97316'
       } else if (pct >= 40) {
         this.heatingBarEl.style.borderColor = '#facc15'
-        this.heatingBarEl.style.boxShadow = '0 0 24px rgba(250, 204, 21, 0.45)'
-        this.heatingLabelEl.textContent = `SURCHAUFFE DU SUBSTRAT [${pct}%] - NIVEAU 2 MOYEN`
-        this.heatingLabelEl.style.color = '#facc15'
+        this.heatingBarEl.style.boxShadow = '0 0 16px rgba(250, 204, 21, 0.45)'
         this.heatingHeaderPctEl.style.color = '#facc15'
       } else {
         this.heatingBarEl.style.borderColor = '#00ff88'
-        this.heatingBarEl.style.boxShadow = '0 0 24px rgba(0, 255, 136, 0.35)'
-        this.heatingLabelEl.textContent = `SURCHAUFFE DU SUBSTRAT [${pct}%] - NIVEAU 1 STABLE`
-        this.heatingLabelEl.style.color = '#00ff88'
+        this.heatingBarEl.style.boxShadow = '0 0 16px rgba(0, 255, 136, 0.35)'
         this.heatingHeaderPctEl.style.color = '#00ff88'
       }
     } else {
       this.heatingBarEl.style.display = 'none'
     }
 
-    // 5. Dash & Jump Controls Indicator
-    if (dashTimer <= 0) {
+    // 5. Dash Indicator
+    if (dashTimer > 0) {
+      const pct = 1 - dashTimer / dashCooldown
+      this.dashIndicatorEl.style.opacity = '0.5'
+      this.dashIndicatorEl.style.borderColor = '#475569'
       this.dashIndicatorEl.innerHTML = `
-        <div style="width: 24px; height: 24px; display: flex; align-items: center; justify-content: center;">
-          ${PixelArt.speed}
-        </div>
-        <span>DASH [SHIFT] | SAUT [ESPACE]</span>
+        ${PixelArt.speed}
+        <span style="color: #94a3b8;">DASH [${Math.floor(pct * 100)}%]</span>
       `
-      this.dashIndicatorEl.style.color = '#00ff88'
-      this.dashIndicatorEl.style.borderColor = '#00ff8866'
     } else {
-      const pct = Math.floor(((dashCooldown - dashTimer) / dashCooldown) * 100)
+      this.dashIndicatorEl.style.opacity = '1.0'
+      this.dashIndicatorEl.style.borderColor = '#00ff88'
       this.dashIndicatorEl.innerHTML = `
-        <div style="width: 14px; height: 14px; border: 2px solid #ffaa00; border-top-color: transparent; clip-path: ${PS1_BEVEL_4PX}; animation: spin 1s linear infinite;"></div>
-        <span>RECHARGE DASH (${pct}%) | SAUT [ESPACE]</span>
+        ${PixelArt.speed}
+        <span style="color: #00ff88;">DASH [SHIFT] &nbsp;|&nbsp; SAUT [ESPACE]</span>
       `
-      this.dashIndicatorEl.style.color = '#ffaa00'
-      this.dashIndicatorEl.style.borderColor = '#ffaa0066'
     }
 
-    // 6. Boss 3-Phase Health & Survival Bar
+    // 6. Boss Tactical Bar
     if (bossActive) {
       this.bossBarEl.style.display = 'block'
-      const hpPct = Math.max(0, Math.min(100, Math.ceil((bossHp / bossMaxHp) * 100)))
-      this.bossFillEl.style.width = `${hpPct}%`
+      const timeLeft = Math.max(0, bossMaxTime - bossTimer)
+      this.bossTimerEl.textContent = `${timeLeft.toFixed(1)}s`
 
-      let phaseTitle = 'PHASE 1: HEAVY MARCH'
-      let phaseColor = '#38bdf8'
-      let fillGradient = 'linear-gradient(90deg, #38bdf8, #00ffff)'
-
-      if (bossPhase === 2) {
-        phaseTitle = 'PHASE 2: OVERCLOCK RAGE'
-        phaseColor = '#f97316'
-        fillGradient = 'linear-gradient(90deg, #ff8800, #ff2244)'
-      } else if (bossPhase === 3) {
-        phaseTitle = 'PHASE 3: QUANTUM DASH'
-        phaseColor = '#c084fc'
-        fillGradient = 'linear-gradient(90deg, #a855f7, #00ffff)'
+      if (bossPhase !== undefined) {
+        this.bossPhaseBadgeEl.textContent = `PHASE ${bossPhase}`
       }
 
-      this.bossFillEl.style.background = fillGradient
-      this.bossLabelEl.innerHTML = `
-        ${PixelArt.leekLogo}
-        <span style="font-family: 'Bitcount Grid Double', monospace; font-size: 13px; font-weight: 700; letter-spacing: 2px; color: ${phaseColor};">
-          BOSS : TACTICAL CYBERLEEK [${phaseTitle} - ${hpPct}%]
-        </span>
-      `
+      if (bossHp !== undefined && bossMaxHp !== undefined && bossMaxHp > 0) {
+        const hpPct = Math.max(0, (bossHp / bossMaxHp) * 100)
+        this.bossHpFillEl.style.width = `${hpPct}%`
+      } else {
+        const timePct = Math.max(0, (timeLeft / bossMaxTime) * 100)
+        this.bossHpFillEl.style.width = `${timePct}%`
+      }
     } else {
       this.bossBarEl.style.display = 'none'
     }
+
+    this.updateAudioBadge()
+  }
+
+  showGlitch(): void {
+    const glitch = document.createElement('div')
+    glitch.style.position = 'fixed'
+    glitch.style.top = '0'
+    glitch.style.left = '0'
+    glitch.style.width = '100vw'
+    glitch.style.height = '100vh'
+    glitch.style.background = 'rgba(0, 255, 136, 0.15)'
+    glitch.style.pointerEvents = 'none'
+    glitch.style.zIndex = '999'
+    document.body.appendChild(glitch)
+    setTimeout(() => glitch.remove(), 80)
   }
 }

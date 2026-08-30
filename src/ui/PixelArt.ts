@@ -130,6 +130,9 @@ export const PixelArt = {
   get speed(): string {
     return this.cyberMobility
   },
+  get boss(): string {
+    return this.leekLogo
+  },
 
   // Full Red Pixel Heart (Health)
   heartFull: `
