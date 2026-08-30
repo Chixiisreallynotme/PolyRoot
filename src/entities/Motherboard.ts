@@ -1,361 +1,315 @@
 import * as THREE from 'three'
 
-// Authentic Sony PlayStation 1 (PU-18) Motherboard in 3D
-// Faithful layout featuring:
-// - IC101: Sony MIPS R3000A CPU (CXD8530AQ)
-// - IC201: Sony GPU (CXD8561Q) with heatsink spreader
-// - IC308: Sony SPU Sound Processor (CXD2925Q)
-// - IC701: CD-ROM Mechacon Controller (CXD1815Q)
-// - IC102/IC103: 2MB Work RAM TSOP chips
-// - IC202/IC203: 1MB Dual-Port VRAM chips
-// - IC104: 512KB BIOS ROM
-// - CD-ROM Optical Drive spindle motor base & laser sled rail
-// - Dual Controller & Memory Card front port block (Ports 1 & 2)
-// - AV Multi-Out & Serial/Parallel rear connector blocks
-// - Crystal Oscillators X101 / X201 (silver cans)
-// - SMD Aluminium Capacitors & Silk-screen PCB markings
+// Ultra-Faithful 3D Recreation of Sony PlayStation 1 (PU-8) Motherboard
+// Based directly on high-resolution reference photo 1-658-467-11 PU-8
+// Features comprehensive solid colliders so player navigates corridors between silicon chips
+
+export interface ComponentCollider {
+  x: number
+  z: number
+  halfW: number
+  halfD: number
+  height: number
+  radius: number
+}
 
 export class Motherboard {
   public readonly group: THREE.Group
-  public readonly colliders: { x: number; z: number; radius: number; height: number }[] = []
+  public readonly colliders: ComponentCollider[] = []
   private traceMaterials: THREE.MeshBasicMaterial[] = []
 
-  constructor(scene: THREE.Scene, width = 36, depth = 26) {
+  constructor(scene: THREE.Scene, width = 48, depth = 36) {
     this.group = new THREE.Group()
 
-    // 1. Classic PS1 Forest Green PCB Substrate
-    const pcbGeo = new THREE.BoxGeometry(width, 0.6, depth)
+    // 1. Classic PS1 Olive/Forest Green PCB Substrate (48m x 36m)
+    const pcbGeo = new THREE.BoxGeometry(width, 0.8, depth)
     const pcbMat = new THREE.MeshLambertMaterial({
-      color: 0x1f4a32,
+      color: 0x21442d,
       flatShading: true,
     })
     const pcb = new THREE.Mesh(pcbGeo, pcbMat)
-    pcb.position.set(width / 2, -0.3, depth / 2)
+    pcb.position.set(width / 2, -0.4, depth / 2)
     pcb.receiveShadow = true
     this.group.add(pcb)
 
-    // Gold grounding perimeter edge trace
-    const goldBorderMat = new THREE.MeshLambertMaterial({ color: 0xd4af37, flatShading: true })
-    const borderT = new THREE.Mesh(new THREE.BoxGeometry(width, 0.62, 0.4), goldBorderMat)
-    borderT.position.set(width / 2, -0.29, 0.2)
-    const borderB = new THREE.Mesh(new THREE.BoxGeometry(width, 0.62, 0.4), goldBorderMat)
-    borderB.position.set(width / 2, -0.29, depth - 0.2)
-    const borderL = new THREE.Mesh(new THREE.BoxGeometry(0.4, 0.62, depth), goldBorderMat)
-    borderL.position.set(0.2, -0.29, depth / 2)
-    const borderR = new THREE.Mesh(new THREE.BoxGeometry(0.4, 0.62, depth), goldBorderMat)
-    borderR.position.set(width - 0.2, -0.29, depth / 2)
+    // Gold grounding perimeter trace & corner solder mounting holes
+    const goldMat = new THREE.MeshLambertMaterial({ color: 0xd4af37, flatShading: true })
+    const borderT = new THREE.Mesh(new THREE.BoxGeometry(width, 0.82, 0.6), goldMat)
+    borderT.position.set(width / 2, -0.39, 0.3)
+    const borderB = new THREE.Mesh(new THREE.BoxGeometry(width, 0.82, 0.6), goldMat)
+    borderB.position.set(width / 2, -0.39, depth - 0.3)
+    const borderL = new THREE.Mesh(new THREE.BoxGeometry(0.6, 0.82, depth), goldMat)
+    borderL.position.set(0.3, -0.39, depth / 2)
+    const borderR = new THREE.Mesh(new THREE.BoxGeometry(0.6, 0.82, depth), goldMat)
+    borderR.position.set(width - 0.3, -0.39, depth / 2)
     this.group.add(borderT, borderB, borderL, borderR)
 
-    // 2. PS1 Silk-Screen Text Plates ("SONY COMPUTER ENTERTAINMENT INC.", "PU-18", "MADE IN JAPAN")
-    this.buildSilkscreenLabels(width, depth)
+    // 2. PU-8 Silkscreen Texts & Markings ("1-658-467-11", "PU-8", "SONY", "CAUTION")
+    this.buildSilkscreenPU8(width, depth)
 
-    // 3. Central Chips: CPU (IC101) & GPU (IC201) & SPU (IC308) & CD Mechacon (IC701)
-    this.buildPs1Cpu(18, 13) // IC101 MIPS R3000A Center
-    this.buildPs1Gpu(11, 13) // IC201 GPU Left
-    this.buildPs1Spu(12, 19) // IC308 SPU
-    this.buildPs1Mechacon(25, 9) // IC701 CD-ROM Controller
-    this.buildBiosRom(11, 7) // IC104 BIOS
+    // 3. Top Edge: Metal RF Shielding Housing + 3x RCA Jacks + AV Multi Out + Parallel I/O + Black Connector
+    this.buildTopConnectorRack(width * 0.48, 1.4)
 
-    // 4. Memory Chips: 2MB Work RAM & 1MB VRAM
-    this.buildRamChips([
-      { x: 17, z: 8, label: 'IC102 RAM' },
-      { x: 19.5, z: 8, label: 'IC103 RAM' },
-      { x: 8, z: 11, label: 'IC202 VRAM' },
-      { x: 8, z: 15, label: 'IC203 VRAM' },
-    ])
+    // 4. Right Side: IC101 CPU (Sony MIPS R3000A / CXD8530BQ) + 4x SEC TSOP RAM Chips
+    this.buildCpuAndRam(36, 21)
 
-    // 5. CD-ROM Drive Spindle & Laser Carriage Assembly (Right Zone)
-    this.buildCdRomSpindle(26, 17)
+    // 5. Center-Right: IC201 GPU (Sony CXD8514Q) + 2x SEC VRAM Chips
+    this.buildGpuAndVram(28, 19)
 
-    // 6. Front Controller & Memory Card Ports Block (Dual Gray Ports)
-    this.buildControllerPorts(18, 25.2)
+    // 6. Top-Left / Center-Left: SPU (CXD2922Q) + Mechacon (CXD1815Q) + DSP (CXD2510Q) + SEC SPU RAM
+    this.buildSoundAndCdProcessing(16, 12)
 
-    // 7. Rear Connectors (AV Multi-Out & Serial/Parallel I/O)
-    this.buildRearConnectors(18, 0.8)
+    // 7. Top-Left Cluster of 6 Silver Electrolytic Capacitors (C514, C517, C518)
+    this.buildCapacitorCluster(7, 6)
 
-    // 8. PS1 Shiny Silver Crystal Oscillators (X101 67MHz, X201 53MHz)
-    this.buildCrystalOscillators([
-      { x: 15, z: 10 },
-      { x: 9.5, z: 17 },
-    ])
+    // 8. Bottom-Left: Laser Sled Connector (CN702) + PSU Connector (CCP2E20) + Additional SMD Caps
+    this.buildLaserAndPowerConnectors(8, 26)
 
-    // 9. Towering PS1 SMD Aluminium Electrolytic Capacitors
-    this.buildPs1Capacitors([
-      { x: 6, z: 5, radius: 0.75, height: 2.8 },
-      { x: 7.8, z: 5, radius: 0.75, height: 2.8 },
-      { x: 5, z: 19, radius: 0.85, height: 3.2 },
-      { x: 7, z: 19, radius: 0.85, height: 3.2 },
-      { x: 23, z: 5, radius: 0.7, height: 2.5 },
-      { x: 31, z: 6, radius: 0.8, height: 3.0 },
-      { x: 32, z: 11, radius: 0.7, height: 2.6 },
-      { x: 31, z: 22, radius: 0.75, height: 2.8 },
-      { x: 7, z: 23, radius: 0.75, height: 2.8 },
-    ])
+    // 9. Bottom Solder Pad Array "0 1 2 3 4 5 6 7 8 9"
+    this.buildBottomSolderPads(width / 2, depth - 2.0)
 
-    // 10. PS1 Copper Traces & Power Lines
-    this.buildCircuitTraces(width, depth)
+    // 10. Glowing Copper Traces & Solder Runs
+    this.buildIntricateCircuitTraces(width, depth)
 
     scene.add(this.group)
   }
 
-  private buildSilkscreenLabels(width: number, depth: number): void {
+  private buildSilkscreenPU8(width: number, depth: number): void {
     const whiteMat = new THREE.MeshBasicMaterial({ color: 0xeeeeee })
-    // SONY Silkscreen banner
-    const sonyPlate = new THREE.Mesh(new THREE.BoxGeometry(6.5, 0.02, 0.6), whiteMat)
-    sonyPlate.position.set(18, 0.02, 3.5)
-    this.group.add(sonyPlate)
 
-    // "PU-18" PCB Model Identifier
-    const puPlate = new THREE.Mesh(new THREE.BoxGeometry(3.2, 0.02, 0.5), whiteMat)
-    puPlate.position.set(4.5, 0.02, 3.5)
-    this.group.add(puPlate)
+    // "1-658-467-11 PU-8" Left Silk Label
+    const puLabel = new THREE.Mesh(new THREE.BoxGeometry(0.5, 0.02, 6.5), whiteMat)
+    puLabel.position.set(2.4, 0.02, 14.0)
+    this.group.add(puLabel)
 
-    // "MADE IN JAPAN" Solder Pad label
-    const japanPlate = new THREE.Mesh(new THREE.BoxGeometry(4.0, 0.02, 0.4), whiteMat)
-    japanPlate.position.set(31, 0.02, 3.5)
-    this.group.add(japanPlate)
+    // SONY Logo at board center
+    const sonyLogo = new THREE.Mesh(new THREE.BoxGeometry(4.2, 0.02, 0.8), whiteMat)
+    sonyLogo.position.set(25.0, 0.02, 12.0)
+    this.group.add(sonyLogo)
+
+    // "CAUTION: REPLACE IC LINK AS MARKED" Bottom Silk Banner
+    const cautionBanner = new THREE.Mesh(new THREE.BoxGeometry(14.0, 0.02, 0.6), whiteMat)
+    cautionBanner.position.set(20.0, 0.02, depth - 3.2)
+    this.group.add(cautionBanner)
   }
 
-  private buildPs1Cpu(x: number, z: number): void {
+  private buildTopConnectorRack(x: number, z: number): void {
+    const metalMat = new THREE.MeshLambertMaterial({ color: 0xc4cdd5, flatShading: true })
+    const blackMat = new THREE.MeshLambertMaterial({ color: 0x1a202c, flatShading: true })
+    const goldPinMat = new THREE.MeshLambertMaterial({ color: 0xd4af37, flatShading: true })
+
+    // 1. Metal RF Shielding Frame
+    const shield = new THREE.Mesh(new THREE.BoxGeometry(22.0, 2.6, 2.4), metalMat)
+    shield.position.set(x, 1.3, z)
+    shield.castShadow = true
+    shield.receiveShadow = true
+    this.group.add(shield)
+    this.addBoxCollider(x, z, 22.0, 2.4, 2.6)
+
+    // 2. 3x RCA Phono Video/Audio Jacks (Yellow, White, Red)
+    const rcaColors = [0xffd700, 0xffffff, 0xff2222]
+    for (let i = 0; i < 3; i++) {
+      const jack = new THREE.Mesh(new THREE.CylinderGeometry(0.38, 0.38, 0.8, 12), metalMat)
+      jack.rotateX(Math.PI / 2)
+      jack.position.set(x - 5.0 + i * 2.2, 1.3, z - 1.4)
+      jack.castShadow = true
+      this.group.add(jack)
+
+      const colorRing = new THREE.Mesh(new THREE.RingGeometry(0.18, 0.36, 12), new THREE.MeshBasicMaterial({ color: rcaColors[i] ?? 0xffffff }))
+      colorRing.position.set(x - 5.0 + i * 2.2, 1.3, z - 1.81)
+      this.group.add(colorRing)
+    }
+
+    // 3. Top-Right Black Multi-Pin Memory Bus Connector
+    const connBlack = new THREE.Mesh(new THREE.BoxGeometry(8.5, 2.8, 2.6), blackMat)
+    connBlack.position.set(x + 15.0, 1.4, z)
+    connBlack.castShadow = true
+    connBlack.receiveShadow = true
+    this.group.add(connBlack)
+    this.addBoxCollider(x + 15.0, z, 8.5, 2.6, 2.8)
+  }
+
+  private buildCpuAndRam(x: number, z: number): void {
+    const chipMat = new THREE.MeshLambertMaterial({ color: 0x15181e, flatShading: true })
+    const goldTextMat = new THREE.MeshLambertMaterial({ color: 0xe6b800, flatShading: true })
+    const pinMat = new THREE.MeshLambertMaterial({ color: 0xd0d8e0, flatShading: true })
+
+    // IC101: SONY MIPS R3000A CPU (CXD8530BQ)
     const cpuGroup = new THREE.Group()
     cpuGroup.position.set(x, 0, z)
 
-    // Main Black Epoxy Package (Sony CXD8530AQ MIPS R3000A)
-    const bodyMat = new THREE.MeshLambertMaterial({ color: 0x181818, flatShading: true })
-    const body = new THREE.Mesh(new THREE.BoxGeometry(5.2, 0.45, 5.2), bodyMat)
-    body.position.y = 0.225
-    body.castShadow = true
-    body.receiveShadow = true
-    cpuGroup.add(body)
+    const cpuBody = new THREE.Mesh(new THREE.BoxGeometry(6.5, 0.55, 6.5), chipMat)
+    cpuBody.position.y = 0.275
+    cpuBody.castShadow = true
+    cpuBody.receiveShadow = true
+    cpuGroup.add(cpuBody)
 
-    // Gold "SONY" Heat Spreader Center Plate
-    const goldMat = new THREE.MeshLambertMaterial({ color: 0xe6b800, flatShading: true })
-    const logoPlate = new THREE.Mesh(new THREE.BoxGeometry(3.6, 0.08, 3.6), goldMat)
-    logoPlate.position.y = 0.48
-    logoPlate.castShadow = true
-    cpuGroup.add(logoPlate)
+    const cpuLogo = new THREE.Mesh(new THREE.BoxGeometry(4.2, 0.08, 4.2), goldTextMat)
+    cpuLogo.position.y = 0.58
+    cpuGroup.add(cpuLogo)
 
-    // Quad-side Silver Lead Pins (QFP package 208 pins representation)
-    const pinMat = new THREE.MeshLambertMaterial({ color: 0xd0d8e0, flatShading: true })
-    const pinBarX = new THREE.Mesh(new THREE.BoxGeometry(5.6, 0.1, 0.2), pinMat)
-    pinBarX.position.set(0, 0.1, 2.7)
-    const pinBarX2 = new THREE.Mesh(new THREE.BoxGeometry(5.6, 0.1, 0.2), pinMat)
-    pinBarX2.position.set(0, 0.1, -2.7)
-    const pinBarZ = new THREE.Mesh(new THREE.BoxGeometry(0.2, 0.1, 5.6), pinMat)
-    pinBarZ.position.set(2.7, 0.1, 0)
-    const pinBarZ2 = new THREE.Mesh(new THREE.BoxGeometry(0.2, 0.1, 5.6), pinMat)
-    pinBarZ2.position.set(-2.7, 0.1, 0)
-    cpuGroup.add(pinBarX, pinBarX2, pinBarZ, pinBarZ2)
+    // QFP Pin Fringe
+    const pinX1 = new THREE.Mesh(new THREE.BoxGeometry(7.1, 0.12, 0.25), pinMat)
+    pinX1.position.set(0, 0.12, 3.4)
+    const pinX2 = new THREE.Mesh(new THREE.BoxGeometry(7.1, 0.12, 0.25), pinMat)
+    pinX2.position.set(0, 0.12, -3.4)
+    const pinZ1 = new THREE.Mesh(new THREE.BoxGeometry(0.25, 0.12, 7.1), pinMat)
+    pinZ1.position.set(3.4, 0.12, 0)
+    const pinZ2 = new THREE.Mesh(new THREE.BoxGeometry(0.25, 0.12, 7.1), pinMat)
+    pinZ2.position.set(-3.4, 0.12, 0)
+    cpuGroup.add(pinX1, pinX2, pinZ1, pinZ2)
 
     this.group.add(cpuGroup)
-    this.colliders.push({ x, z, radius: 2.8, height: 0.8 })
-  }
+    this.addBoxCollider(x, z, 7.2, 7.2, 0.8)
 
-  private buildPs1Gpu(x: number, z: number): void {
-    const gpuGroup = new THREE.Group()
-    gpuGroup.position.set(x, 0, z)
-
-    // Sony GPU Package (CXD8561Q)
-    const gpuBody = new THREE.Mesh(new THREE.BoxGeometry(4.4, 0.4, 4.4), new THREE.MeshLambertMaterial({ color: 0x222222, flatShading: true }))
-    gpuBody.position.y = 0.2
-    gpuBody.castShadow = true
-    gpuGroup.add(gpuBody)
-
-    // Aluminum Heatsink plate
-    const heatSpreader = new THREE.Mesh(new THREE.BoxGeometry(3.2, 0.25, 3.2), new THREE.MeshLambertMaterial({ color: 0x99aab8, flatShading: true }))
-    heatSpreader.position.y = 0.45
-    heatSpreader.castShadow = true
-    gpuGroup.add(heatSpreader)
-
-    this.group.add(gpuGroup)
-    this.colliders.push({ x, z, radius: 2.4, height: 0.7 })
-  }
-
-  private buildPs1Spu(x: number, z: number): void {
-    const spuMat = new THREE.MeshLambertMaterial({ color: 0x1f1f1f, flatShading: true })
-    const spu = new THREE.Mesh(new THREE.BoxGeometry(3.8, 0.35, 3.8), spuMat)
-    spu.position.set(x, 0.175, z)
-    spu.castShadow = true
-    this.group.add(spu)
-    this.colliders.push({ x, z, radius: 2.0, height: 0.6 })
-  }
-
-  private buildPs1Mechacon(x: number, z: number): void {
-    const chipMat = new THREE.MeshLambertMaterial({ color: 0x181818, flatShading: true })
-    const chip = new THREE.Mesh(new THREE.BoxGeometry(3.2, 0.35, 3.2), chipMat)
-    chip.position.set(x, 0.175, z)
-    chip.castShadow = true
-    this.group.add(chip)
-    this.colliders.push({ x, z, radius: 1.8, height: 0.6 })
-  }
-
-  private buildBiosRom(x: number, z: number): void {
-    const romMat = new THREE.MeshLambertMaterial({ color: 0x2d3748, flatShading: true })
-    const rom = new THREE.Mesh(new THREE.BoxGeometry(2.4, 0.3, 4.0), romMat)
-    rom.position.set(x, 0.15, z)
-    rom.castShadow = true
-    this.group.add(rom)
-    this.colliders.push({ x, z, radius: 1.8, height: 0.5 })
-  }
-
-  private buildRamChips(chips: { x: number; z: number; label: string }[]): void {
-    const ramMat = new THREE.MeshLambertMaterial({ color: 0x151515, flatShading: true })
-    for (const c of chips) {
-      const ram = new THREE.Mesh(new THREE.BoxGeometry(1.6, 0.25, 2.8), ramMat)
-      ram.position.set(c.x, 0.125, c.z)
+    // 4x SEC TSOP Work RAM Chips below CPU
+    const ramMat = new THREE.MeshLambertMaterial({ color: 0x1a202c, flatShading: true })
+    const ramOffsets = [
+      { dx: -2.5, dz: 6.2 },
+      { dx: 2.5, dz: 6.2 },
+      { dx: -2.5, dz: 10.2 },
+      { dx: 2.5, dz: 10.2 },
+    ]
+    for (const ro of ramOffsets) {
+      const ram = new THREE.Mesh(new THREE.BoxGeometry(3.6, 0.35, 2.2), ramMat)
+      ram.position.set(x + ro.dx, 0.175, z + ro.dz)
       ram.castShadow = true
       this.group.add(ram)
-      this.colliders.push({ x: c.x, z: c.z, radius: 1.2, height: 0.4 })
+      this.addBoxCollider(x + ro.dx, z + ro.dz, 3.6, 2.2, 0.5)
     }
   }
 
-  private buildCdRomSpindle(x: number, z: number): void {
-    const cdGroup = new THREE.Group()
-    cdGroup.position.set(x, 0, z)
+  private buildGpuAndVram(x: number, z: number): void {
+    const gpuMat = new THREE.MeshLambertMaterial({ color: 0x1f242d, flatShading: true })
+    const spreaderMat = new THREE.MeshLambertMaterial({ color: 0x8899aa, flatShading: true })
+    const vramMat = new THREE.MeshLambertMaterial({ color: 0x181c24, flatShading: true })
 
-    // Metallic Circular Drive Wells
-    const wellMat = new THREE.MeshLambertMaterial({ color: 0x4a5568, flatShading: true })
-    const well = new THREE.Mesh(new THREE.CylinderGeometry(4.6, 4.8, 0.4, 24), wellMat)
-    well.position.y = 0.2
-    well.receiveShadow = true
-    cdGroup.add(well)
+    // IC201: SONY GPU (CXD8514Q)
+    const gpu = new THREE.Mesh(new THREE.BoxGeometry(5.8, 0.5, 5.8), gpuMat)
+    gpu.position.set(x, 0.25, z)
+    gpu.castShadow = true
+    this.group.add(gpu)
 
-    // Center Spindle Chuck (Black Hub with 3 Ball Bearings)
-    const hubMat = new THREE.MeshLambertMaterial({ color: 0x111111, flatShading: true })
-    const hub = new THREE.Mesh(new THREE.CylinderGeometry(1.5, 1.6, 1.2, 16), hubMat)
-    hub.position.y = 0.8
-    hub.castShadow = true
-    cdGroup.add(hub)
+    const spreader = new THREE.Mesh(new THREE.BoxGeometry(4.2, 0.3, 4.2), spreaderMat)
+    spreader.position.set(x, 0.55, z)
+    spreader.castShadow = true
+    this.group.add(spreader)
+    this.addBoxCollider(x, z, 6.0, 6.0, 0.8)
 
-    // Top Spindle Cap
-    const capMat = new THREE.MeshLambertMaterial({ color: 0xcccccc, flatShading: true })
-    const cap = new THREE.Mesh(new THREE.CylinderGeometry(0.7, 0.7, 0.4, 12), capMat)
-    cap.position.y = 1.5
-    cap.castShadow = true
-    cdGroup.add(cap)
+    // 2x SEC KOREA VRAM Chips to the left of GPU
+    const vram1 = new THREE.Mesh(new THREE.BoxGeometry(4.2, 0.35, 2.6), vramMat)
+    vram1.position.set(x - 5.5, 0.175, z - 1.8)
+    vram1.castShadow = true
+    const vram2 = new THREE.Mesh(new THREE.BoxGeometry(4.2, 0.35, 2.6), vramMat)
+    vram2.position.set(x - 5.5, 0.175, z + 2.2)
+    vram2.castShadow = true
+    this.group.add(vram1, vram2)
 
-    // Optical Laser Carriage Sled Rails (Silver Rods)
-    const rodMat = new THREE.MeshLambertMaterial({ color: 0xd0d0d0, flatShading: true })
-    const rod1 = new THREE.Mesh(new THREE.CylinderGeometry(0.1, 0.1, 6.5), rodMat)
-    rod1.rotation.z = Math.PI / 2
-    rod1.position.set(0, 0.35, -2.2)
-    const rod2 = new THREE.Mesh(new THREE.CylinderGeometry(0.1, 0.1, 6.5), rodMat)
-    rod2.rotation.z = Math.PI / 2
-    rod2.position.set(0, 0.35, 2.2)
-    cdGroup.add(rod1, rod2)
-
-    this.group.add(cdGroup)
-    this.colliders.push({ x, z, radius: 4.8, height: 1.8 })
+    this.addBoxCollider(x - 5.5, z - 1.8, 4.2, 2.6, 0.5)
+    this.addBoxCollider(x - 5.5, z + 2.2, 4.2, 2.6, 0.5)
   }
 
-  private buildControllerPorts(x: number, z: number): void {
-    // PS1 Front Dual Controller / Memory Card Ports Block
-    const portGroup = new THREE.Group()
-    portGroup.position.set(x, 0, z)
+  private buildSoundAndCdProcessing(x: number, z: number): void {
+    const chipMat = new THREE.MeshLambertMaterial({ color: 0x161a22, flatShading: true })
 
-    const greyMat = new THREE.MeshLambertMaterial({ color: 0x889098, flatShading: true })
-    const housing = new THREE.Mesh(new THREE.BoxGeometry(16.0, 2.6, 1.8), greyMat)
-    housing.position.y = 1.3
-    housing.castShadow = true
-    housing.receiveShadow = true
-    portGroup.add(housing)
+    // IC1815: SONY CD-ROM Mechacon (CXD1815Q)
+    const mechacon = new THREE.Mesh(new THREE.BoxGeometry(4.8, 0.4, 4.8), chipMat)
+    mechacon.position.set(x, 0.2, z)
+    mechacon.castShadow = true
+    this.group.add(mechacon)
+    this.addBoxCollider(x, z, 5.0, 5.0, 0.6)
 
-    // Dual Controller Sockets (Port 1 & Port 2)
-    const socketMat = new THREE.MeshLambertMaterial({ color: 0x222222, flatShading: true })
-    const sock1 = new THREE.Mesh(new THREE.BoxGeometry(4.8, 0.8, 0.4), socketMat)
-    sock1.position.set(-4.5, 0.8, -0.9)
-    const sock2 = new THREE.Mesh(new THREE.BoxGeometry(4.8, 0.8, 0.4), socketMat)
-    sock2.position.set(4.5, 0.8, -0.9)
-    portGroup.add(sock1, sock2)
+    // IC2922: SONY SPU (CXD2922Q) Sound Processor
+    const spu = new THREE.Mesh(new THREE.BoxGeometry(4.8, 0.4, 4.8), chipMat)
+    spu.position.set(x + 5.8, 0.2, z)
+    spu.castShadow = true
+    this.group.add(spu)
+    this.addBoxCollider(x + 5.8, z, 5.0, 5.0, 0.6)
 
-    // Memory Card Slots above controller sockets
-    const cardSlot1 = new THREE.Mesh(new THREE.BoxGeometry(4.6, 0.4, 0.4), socketMat)
-    cardSlot1.position.set(-4.5, 1.8, -0.9)
-    const cardSlot2 = new THREE.Mesh(new THREE.BoxGeometry(4.6, 0.4, 0.4), socketMat)
-    cardSlot2.position.set(4.5, 1.8, -0.9)
-    portGroup.add(cardSlot1, cardSlot2)
-
-    this.group.add(portGroup)
-    this.colliders.push({ x, z, radius: 8.2, height: 2.6 })
+    // IC2510: SONY CD DSP (CXD2510Q) Tall Rectangular Chip
+    const dsp = new THREE.Mesh(new THREE.BoxGeometry(3.6, 0.4, 6.2), chipMat)
+    dsp.position.set(x - 5.8, 0.2, z + 2.0)
+    dsp.castShadow = true
+    this.group.add(dsp)
+    this.addBoxCollider(x - 5.8, z + 2.0, 3.6, 6.2, 0.6)
   }
 
-  private buildRearConnectors(x: number, z: number): void {
-    const rearGroup = new THREE.Group()
-    rearGroup.position.set(x, 0, z)
+  private buildCapacitorCluster(x: number, z: number): void {
+    const capOffsets = [
+      { dx: 0, dz: 0, r: 0.75, h: 2.8 },
+      { dx: 1.8, dz: 0, r: 0.75, h: 2.8 },
+      { dx: 3.6, dz: 0, r: 0.75, h: 2.8 },
+      { dx: 0, dz: 2.0, r: 0.75, h: 2.8 },
+      { dx: 1.8, dz: 2.0, r: 0.75, h: 2.8 },
+      { dx: 3.6, dz: 2.0, r: 0.75, h: 2.8 },
+    ]
 
-    const metalMat = new THREE.MeshLambertMaterial({ color: 0xa0aab4, flatShading: true })
+    const bodyMat = new THREE.MeshLambertMaterial({ color: 0xd8dde4, flatShading: true })
+    const topMat = new THREE.MeshLambertMaterial({ color: 0x111111, flatShading: true })
 
-    // AV Multi Out Port Block
-    const avPort = new THREE.Mesh(new THREE.BoxGeometry(4.5, 2.2, 1.6), metalMat)
-    avPort.position.set(-4.0, 1.1, 0)
-    avPort.castShadow = true
-    rearGroup.add(avPort)
+    for (const c of capOffsets) {
+      const posX = x + c.dx
+      const posZ = z + c.dz
+      const cap = new THREE.Mesh(new THREE.CylinderGeometry(c.r, c.r, c.h, 12), bodyMat)
+      cap.position.set(posX, c.h / 2, posZ)
+      cap.castShadow = true
+      this.group.add(cap)
 
-    // Serial I/O & Parallel I/O Ports Block
-    const serialPort = new THREE.Mesh(new THREE.BoxGeometry(6.5, 2.0, 1.6), metalMat)
-    serialPort.position.set(4.5, 1.0, 0)
-    serialPort.castShadow = true
-    rearGroup.add(serialPort)
+      const top = new THREE.Mesh(new THREE.CylinderGeometry(c.r * 0.95, c.r * 0.95, 0.08, 12), topMat)
+      top.position.set(posX, c.h + 0.04, posZ)
+      this.group.add(top)
 
-    this.group.add(rearGroup)
-    this.colliders.push({ x, z, radius: 6.5, height: 2.2 })
-  }
-
-  private buildCrystalOscillators(crystals: { x: number; z: number }[]): void {
-    const canMat = new THREE.MeshLambertMaterial({ color: 0xe0e6ed, flatShading: true })
-    for (const c of crystals) {
-      const can = new THREE.Mesh(new THREE.CylinderGeometry(0.35, 0.35, 1.2, 12), canMat)
-      can.position.set(c.x, 0.6, c.z)
-      can.castShadow = true
-      this.group.add(can)
+      this.addCylinderCollider(posX, posZ, c.r + 0.2, c.h)
     }
   }
 
-  private buildPs1Capacitors(caps: { x: number; z: number; radius: number; height: number }[]): void {
-    for (const c of caps) {
-      const capGroup = new THREE.Group()
-      capGroup.position.set(c.x, 0, c.z)
+  private buildLaserAndPowerConnectors(x: number, z: number): void {
+    const blackMat = new THREE.MeshLambertMaterial({ color: 0x1a1a1a, flatShading: true })
+    const whiteMat = new THREE.MeshLambertMaterial({ color: 0xf0f4f8, flatShading: true })
 
-      // PS1 Silver Aluminium SMD Cylinder Body
-      const bodyGeo = new THREE.CylinderGeometry(c.radius, c.radius, c.height, 12)
-      const bodyMat = new THREE.MeshLambertMaterial({ color: 0xd8dde4, flatShading: true })
-      const body = new THREE.Mesh(bodyGeo, bodyMat)
-      body.position.y = c.height / 2
-      body.castShadow = true
-      body.receiveShadow = true
-      capGroup.add(body)
+    // CN702 Optical Laser Flat Ribbon Cable Slot (Black angled slot)
+    const laserSlot = new THREE.Mesh(new THREE.BoxGeometry(1.2, 0.6, 4.8), blackMat)
+    laserSlot.rotation.y = 0.35
+    laserSlot.position.set(x, 0.3, z)
+    laserSlot.castShadow = true
+    this.group.add(laserSlot)
+    this.addBoxCollider(x, z, 2.0, 5.0, 0.8)
 
-      // Black top polarity marker semi-circle
-      const topGeo = new THREE.CylinderGeometry(c.radius * 0.95, c.radius * 0.95, 0.08, 12)
-      const topMat = new THREE.MeshLambertMaterial({ color: 0x1a202c, flatShading: true })
-      const top = new THREE.Mesh(topGeo, topMat)
-      top.position.y = c.height + 0.04
-      top.castShadow = true
-      capGroup.add(top)
+    // CCP2E20 White Power Supply Ribbon Header (7-pin block)
+    const psuPlug = new THREE.Mesh(new THREE.BoxGeometry(1.8, 1.4, 4.5), whiteMat)
+    psuPlug.position.set(x - 4.5, 0.7, z + 3.0)
+    psuPlug.castShadow = true
+    this.group.add(psuPlug)
+    this.addBoxCollider(x - 4.5, z + 3.0, 1.8, 4.5, 1.4)
+  }
 
-      this.group.add(capGroup)
-      this.colliders.push({ x: c.x, z: c.z, radius: c.radius + 0.2, height: c.height })
+  private buildBottomSolderPads(x: number, z: number): void {
+    const padMat = new THREE.MeshLambertMaterial({ color: 0xd4af37, flatShading: true })
+    // Array of 10 gold circular solder test points "0 1 2 3 4 5 6 7 8 9"
+    for (let i = 0; i < 10; i++) {
+      const pad = new THREE.Mesh(new THREE.CylinderGeometry(0.35, 0.35, 0.08, 12), padMat)
+      pad.position.set(x - 9.0 + i * 2.0, 0.04, z)
+      this.group.add(pad)
     }
   }
 
-  private buildCircuitTraces(width: number, depth: number): void {
-    // Glowing golden/green copper PCB trace tracks
+  private buildIntricateCircuitTraces(width: number, depth: number): void {
     const traceMat = new THREE.MeshBasicMaterial({
-      color: 0x44ff99,
+      color: 0x55ffaa,
       transparent: true,
       opacity: 0.45,
     })
     this.traceMaterials.push(traceMat)
 
     const traces = [
-      { x: 18, z: 10.5, w: 0.25, d: 4.5 },
-      { x: 14.5, z: 13, w: 6.5, d: 0.25 },
-      { x: 18, z: 15.5, w: 0.25, d: 4.5 },
-      { x: 21.5, z: 13, w: 6.5, d: 0.25 },
-      { x: 12, z: 16, w: 0.25, d: 5.5 },
-      { x: 25, z: 13, w: 0.25, d: 7.5 },
-      { x: 11, z: 10, w: 0.25, d: 5.5 },
-      { x: 18, z: 6, w: 10.0, d: 0.25 },
+      { x: 28, z: 12, w: 0.3, d: 8.0 },
+      { x: 32, z: 15, w: 6.0, d: 0.3 },
+      { x: 22, z: 24, w: 10.0, d: 0.3 },
+      { x: 16, z: 20, w: 0.3, d: 8.0 },
+      { x: 12, z: 10, w: 8.0, d: 0.3 },
+      { x: 38, z: 14, w: 0.3, d: 10.0 },
+      { x: 24, z: 30, w: 14.0, d: 0.3 },
+      { x: 10, z: 28, w: 0.3, d: 6.0 },
     ]
 
     for (const t of traces) {
@@ -363,6 +317,57 @@ export class Motherboard {
       trace.position.set(t.x, 0.01, t.z)
       this.group.add(trace)
     }
+  }
+
+  private addBoxCollider(x: number, z: number, width: number, depth: number, height: number): void {
+    this.colliders.push({
+      x,
+      z,
+      halfW: width / 2 + 0.3,
+      halfD: depth / 2 + 0.3,
+      height,
+      radius: Math.sqrt(width * width + depth * depth) / 2,
+    })
+  }
+
+  private addCylinderCollider(x: number, z: number, radius: number, height: number): void {
+    this.colliders.push({
+      x,
+      z,
+      halfW: radius,
+      halfD: radius,
+      height,
+      radius,
+    })
+  }
+
+  public checkCollision(pX: number, pZ: number, playerRadius = 0.55, playerY = 0): { collided: boolean; pushX: number; pushZ: number } {
+    let pushX = 0
+    let pushZ = 0
+    let collided = false
+
+    for (const c of this.colliders) {
+      // If player is jumping above the obstacle height, allow passage!
+      if (playerY >= c.height) continue
+
+      const dx = pX - c.x
+      const dz = pZ - c.z
+
+      // AABB Box collision with smooth sliding repulsion
+      const overlapX = (c.halfW + playerRadius) - Math.abs(dx)
+      const overlapZ = (c.halfD + playerRadius) - Math.abs(dz)
+
+      if (overlapX > 0 && overlapZ > 0) {
+        collided = true
+        if (overlapX < overlapZ) {
+          pushX += (dx > 0 ? 1 : -1) * overlapX
+        } else {
+          pushZ += (dz > 0 ? 1 : -1) * overlapZ
+        }
+      }
+    }
+
+    return { collided, pushX, pushZ }
   }
 
   update(time: number): void {

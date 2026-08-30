@@ -12,10 +12,11 @@ import { VictoryScreen } from './ui/VictoryScreen'
 import { RankSystem } from './systems/RankSystem'
 import { ProgressionSystem } from './systems/ProgressionSystem'
 import { FourthWall } from './systems/FourthWall'
+import { ParticleSystem } from './systems/ParticleSystem'
 import { PixelArt } from './ui/PixelArt'
 
 // via threejs-fundamentals: antialias false + camera follow 3D — via threejs-psx-shader: FBO 320x240 Nearest
-// PolyRoot : Escape from PS1 — Faithful Sony PS1 Motherboard Survivor with Bitcount Grid Double & Rubber-Hose Animations
+// PolyRoot : Escape from PS1 — Vast PlayStation 1 Motherboard Survivor with Solid Collisions & Jump Physics
 
 class Game {
   private renderer: THREE.WebGLRenderer
@@ -34,13 +35,14 @@ class Game {
   private victoryScreen: VictoryScreen
   private rankSystem: RankSystem
   private progressionSystem: ProgressionSystem
+  private particleSystem: ParticleSystem
   private fourthWall: FourthWall
 
   private clock = new THREE.Clock()
   private isGameOver = false
   private isVictory = false
-  private cameraOffset = new THREE.Vector3(0, 10.5, 12.0) // Dynamic 3D third-person follow
-  private nextChoiceThreshold = 2 // Triggers at 2, 4, 6, 8
+  private cameraOffset = new THREE.Vector3(0, 11.5, 13.5) // Dynamic 3D third-person follow
+  private nextChoiceThreshold = 2
 
   constructor() {
     // 1. WebGL Renderer Setup (960x720 internal pixelated)
@@ -53,50 +55,50 @@ class Game {
     const app = document.getElementById('app') || document.body
     app.appendChild(this.renderer.domElement)
 
-    // 2. Scene & Bright Illuminated PS1 Environment
+    // 2. Scene & Bright Illuminated PS1 Environment (Zero Dark Gloom)
     this.scene = new THREE.Scene()
-    this.scene.background = new THREE.Color(0x182436)
-    this.scene.fog = new THREE.FogExp2(0x182436, 0.008)
+    this.scene.background = new THREE.Color(0x1a2638)
+    this.scene.fog = new THREE.FogExp2(0x1a2638, 0.007)
 
-    // 3. 3D Camera Setup (Third-person follow)
-    this.camera = new THREE.PerspectiveCamera(46, 960 / 720, 0.1, 100)
-    this.camera.position.set(18, 14, 25)
-    this.camera.lookAt(18, 0, 13)
+    // 3. 3D Camera Setup
+    this.camera = new THREE.PerspectiveCamera(46, 960 / 720, 0.1, 120)
+    this.camera.position.set(24, 16, 32)
+    this.camera.lookAt(24, 0, 18)
 
-    // 4. Bright Lighting Rig (Zero dark gloom)
-    const ambientLight = new THREE.AmbientLight(0xffffff, 1.4)
+    // 4. Bright Lighting Rig
+    const ambientLight = new THREE.AmbientLight(0xffffff, 1.5)
     this.scene.add(ambientLight)
 
-    const sun = new THREE.DirectionalLight(0xfffaee, 2.0)
-    sun.position.set(16, 28, 20)
+    const sun = new THREE.DirectionalLight(0xfffaee, 2.2)
+    sun.position.set(20, 34, 26)
     sun.castShadow = true
     sun.shadow.mapSize.width = 2048
     sun.shadow.mapSize.height = 2048
     sun.shadow.camera.near = 0.5
-    sun.shadow.camera.far = 65
-    sun.shadow.camera.left = -24
-    sun.shadow.camera.right = 24
-    sun.shadow.camera.top = 24
-    sun.shadow.camera.bottom = -24
+    sun.shadow.camera.far = 80
+    sun.shadow.camera.left = -30
+    sun.shadow.camera.right = 30
+    sun.shadow.camera.top = 30
+    sun.shadow.camera.bottom = -30
     this.scene.add(sun)
 
-    // Colored PCB Accent Lights (CPU gold glow, GPU cyan, CD spindle blue)
-    const cpuLight = new THREE.PointLight(0xffcc00, 1.8, 16)
-    cpuLight.position.set(18, 4, 13)
-    const gpuLight = new THREE.PointLight(0x00ffff, 1.4, 16)
-    gpuLight.position.set(11, 4, 13)
-    const cdLight = new THREE.PointLight(0x3388ff, 1.6, 16)
-    cdLight.position.set(26, 4, 17)
-    this.scene.add(cpuLight, gpuLight, cdLight)
+    // Colored PCB Accent Lights
+    const cpuLight = new THREE.PointLight(0xffcc00, 1.8, 18)
+    cpuLight.position.set(36, 4, 21)
+    const gpuLight = new THREE.PointLight(0x00ffff, 1.6, 18)
+    gpuLight.position.set(28, 4, 19)
+    const spuLight = new THREE.PointLight(0x38bdf8, 1.6, 18)
+    spuLight.position.set(16, 4, 12)
+    this.scene.add(cpuLight, gpuLight, spuLight)
 
     // 5. PS1 Post-Processing Pass (320x240 Nearest + Bayer Dither 31.0 + Fog 0.015)
     this.ps1Pass = new PS1Pass(this.renderer)
 
-    // 6. Subsystems Initialization
-    this.motherboard = new Motherboard(this.scene, 36, 26)
-    this.player = new Player(this.scene, 18, 13)
+    // 6. Subsystems Initialization (48m x 36m Motherboard)
+    this.motherboard = new Motherboard(this.scene, 48, 36)
+    this.player = new Player(this.scene, 24, 18)
     this.spawnSystem = new SpawnSystem(this.scene)
-    this.spatialGrid = new SpatialGrid(36, 26, 4.5)
+    this.spatialGrid = new SpatialGrid(48, 36, 4.8)
     this.heatingSystem = new HeatingSystem(this.scene)
     this.boss = new Boss(this.scene)
     this.choiceUI = new ChoiceUI()
@@ -104,12 +106,10 @@ class Game {
     this.victoryScreen = new VictoryScreen()
     this.rankSystem = new RankSystem()
     this.progressionSystem = new ProgressionSystem(this.scene)
+    this.particleSystem = new ParticleSystem(this.scene)
     this.fourthWall = new FourthWall()
 
-    // Setup 4th wall initial bubble & key listeners
     this.setupMetaEvents()
-
-    // Start Game Loop
     this.animate()
   }
 
@@ -164,21 +164,27 @@ class Game {
       }
     }
 
-    // Motherboard animated copper traces
     this.motherboard.update(this.clock.getElapsedTime())
+    this.particleSystem.update(dt)
 
-    // Render via PS1 1-Pass pipeline
     this.ps1Pass.render(this.scene, this.camera)
   }
 
   private updateGame(dt: number): void {
-    // 1. Update Player Movement & Rubber-Hose Animation
+    // 1. Update Player Movement, Jump & Auto-Aim
     const speedScale = this.heatingSystem.isPlayerInsideAny ? 0.70 : 1.0
-    this.player.update(dt, speedScale)
+    this.player.update(dt, speedScale, this.spawnSystem.instances)
 
     const pPos = this.player.position
 
-    // 2. Dynamic 3D Camera Follow
+    // 2. Physical Motherboard Component Collisions (Solid IC chips & capacitors)
+    const col = this.motherboard.checkCollision(pPos.x, pPos.z, 0.55, this.player.root.group.position.y)
+    if (col.collided) {
+      pPos.x += col.pushX
+      pPos.z += col.pushZ
+    }
+
+    // 3. Dynamic 3D Camera Follow
     const targetCamX = pPos.x + this.cameraOffset.x
     const targetCamY = pPos.y + this.cameraOffset.y
     const targetCamZ = pPos.z + this.cameraOffset.z
@@ -188,32 +194,60 @@ class Game {
     this.camera.position.z += (targetCamZ - this.camera.position.z) * Math.min(1.0, dt * 6.0)
     this.camera.lookAt(pPos.x, pPos.y + 0.8, pPos.z)
 
-    // 3. Update Non-Linear Heating System (Free order across all 8 puces)
+    // 4. Update Non-Linear Heating System
     const { heatedAny, insidePuce } = this.heatingSystem.update(dt, pPos.x, pPos.z, (blownPuce) => {
       this.handlePuceBoom(blownPuce.x, blownPuce.z)
     })
 
-    // Check Overclock Trigger every 2 puces
     if (this.heatingSystem.pucesHeatedCount >= this.nextChoiceThreshold && this.nextChoiceThreshold <= 8) {
       this.nextChoiceThreshold += 2
       this.triggerOverclockChoice()
     }
 
-    // 4. Update Progression & Vacuum Gems
+    // 5. Update Progression & Vacuum Gems
     this.progressionSystem.update(dt, pPos.x, pPos.z, () => {
       this.player.heal(1)
+      this.particleSystem.burst({ x: pPos.x, y: 0.5, z: pPos.z }, 4, 0.0, 1.0, 1.0)
     })
 
-    // 5. Update Enemies & Projectiles
+    // 6. Update Enemies & Projectiles
     this.spawnSystem.update(dt, pPos.x, pPos.z, this.heatingSystem.pucesHeatedCount)
 
-    // 6. Spatial Grid Collisions (Aura Damage & Player Contacts)
+    // 7. Player Bullets vs Enemies Collisions
+    for (const bullet of this.player.bullets) {
+      if (!bullet.active) continue
+
+      const bX = bullet.mesh.position.x
+      const bZ = bullet.mesh.position.z
+
+      for (const inst of this.spawnSystem.instances) {
+        if (!inst.active) continue
+
+        const dx = bX - inst.x
+        const dz = bZ - inst.z
+        if (Math.sqrt(dx * dx + dz * dz) <= inst.radius + 0.35) {
+          bullet.active = false
+          bullet.mesh.visible = false
+
+          this.particleSystem.burst({ x: bX, y: 0.6, z: bZ }, 6, 0.0, 1.0, 1.0)
+          const res = this.spawnSystem.damageEnemy(inst.id, this.player.stats.shootDamage)
+          if (res && res.killed) {
+            this.progressionSystem.kills++
+            this.progressionSystem.spawnGem(res.x, res.z)
+            this.particleSystem.burst({ x: res.x, y: 0.6, z: res.z }, 12, 1.0, 0.8, 0.0)
+          }
+          break
+        }
+      }
+    }
+
+    // 8. Spatial Grid Collisions (Aura & Player Contacts)
     this.handleCollisions(dt, pPos.x, pPos.z)
 
-    // 7. Update Boss CyberLeek
+    // 9. Update Boss Tactical CyberLeek
     if (this.boss.active) {
       const { won, shockwaveActive } = this.boss.update(dt, pPos.x, pPos.z, () => {
-        // Boss horde summons
+        // Boss summons
       })
 
       if (shockwaveActive) {
@@ -221,7 +255,6 @@ class Game {
         this.ps1Pass.triggerDamageGlitch()
       }
 
-      // Check Boss disc hits
       for (const disc of this.boss.getActiveDiscs()) {
         const dx = pPos.x - disc.x
         const dz = pPos.z - disc.z
@@ -237,12 +270,12 @@ class Game {
       }
     }
 
-    // 8. Check Game Over
+    // 10. Check Game Over
     if (this.player.stats.hp <= 0) {
       this.handleGameOver()
     }
 
-    // 9. Update Top Cyber HUD
+    // 11. Update Top Cyber HUD
     this.hud.update(
       this.player.stats.hp,
       this.progressionSystem.totalTimeSeconds,
@@ -263,9 +296,13 @@ class Game {
     this.ps1Pass.triggerExplosionShake()
     this.player.root.rig.triggerImpactSquash(0.6)
 
+    // Trigger Chip Explosion Shockwave & 20 fiery sparks
+    this.particleSystem.explodeChip(x, z)
+
+    // Spawn green energy gems for player vacuum
     this.progressionSystem.spawnGem(x, z)
-    this.progressionSystem.spawnGem(x + 0.8, z)
-    this.progressionSystem.spawnGem(x - 0.8, z)
+    this.progressionSystem.spawnGem(x + 1.2, z)
+    this.progressionSystem.spawnGem(x - 1.2, z)
 
     if (this.heatingSystem.isAllHeated() && !this.boss.active) {
       this.boss.spawn()
@@ -276,7 +313,6 @@ class Game {
     const auraRadius = this.player.stats.auraRadius
     const auraRadSq = auraRadius * auraRadius
 
-    // Check enemy contacts and aura burn
     for (const inst of this.spawnSystem.instances) {
       if (!inst.active) continue
 
@@ -285,32 +321,33 @@ class Game {
       const distSq = dx * dx + dz * dz
       const minDist = inst.radius + 0.55
 
-      // Player Body Contact Damage
-      if (distSq <= minDist * minDist) {
+      // Body Contact Damage (only if not jumping high above enemy)
+      if (distSq <= minDist * minDist && this.player.root.group.position.y < 1.2) {
         if (this.player.takeDamage(1)) {
           this.ps1Pass.triggerDamageGlitch()
         }
       }
 
-      // Player Aura Burn / Knockback
+      // Aura Burn / Knockback
       if (distSq <= auraRadSq) {
         const dist = Math.max(0.1, Math.sqrt(distSq))
-        inst.x -= (dx / dist) * 8.0 * dt
-        inst.z -= (dz / dist) * 8.0 * dt
+        inst.x -= (dx / dist) * 8.5 * dt
+        inst.z -= (dz / dist) * 8.5 * dt
 
-        const res = this.spawnSystem.damageEnemy(inst.id, dt * 3.5 * this.player.stats.auraPower)
+        const res = this.spawnSystem.damageEnemy(inst.id, dt * 3.8 * this.player.stats.auraPower)
         if (res && res.killed) {
           this.progressionSystem.kills++
           this.progressionSystem.spawnGem(res.x, res.z)
+          this.particleSystem.burst({ x: res.x, y: 0.6, z: res.z }, 12, 1.0, 0.8, 0.0)
         }
       }
     }
 
-    // Check PEPE energy projectile collisions with player
+    // PEPE Projectiles Collision
     for (const proj of this.spawnSystem.getActiveProjectiles()) {
       const dx = pX - proj.x
       const dz = pZ - proj.z
-      if (Math.sqrt(dx * dx + dz * dz) <= proj.radius + 0.5) {
+      if (Math.sqrt(dx * dx + dz * dz) <= proj.radius + 0.5 && this.player.root.group.position.y < 1.0) {
         if (this.player.takeDamage(1)) {
           this.ps1Pass.triggerDamageGlitch()
         }
@@ -324,8 +361,8 @@ class Game {
         this.player.stats.auraRadius *= 1.35
         this.player.stats.auraPower *= 1.4
       } else if (choice.build === 'B') {
-        this.player.stats.shootRate *= 0.65
-        this.player.stats.shootDamage += 1
+        this.player.stats.shootRate *= 0.60
+        this.player.stats.shootDamage += 1.5
       } else if (choice.build === 'C') {
         this.player.stats.baseSpeed *= 1.30
         this.player.stats.dashCooldown *= 0.65
@@ -346,7 +383,6 @@ class Game {
   }
 }
 
-// Instantiate Game on DOM Load
 window.addEventListener('DOMContentLoaded', () => {
   new Game()
 })
