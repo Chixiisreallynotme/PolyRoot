@@ -8,6 +8,7 @@ import { HeatingSystem } from './systems/HeatingSystem'
 import { Boss } from './entities/Boss'
 import { ChoiceUI } from './ui/ChoiceUI'
 import { PauseUI } from './ui/PauseUI'
+import { IntroMenuUI } from './ui/IntroMenuUI'
 import { HUD } from './ui/HUD'
 import { VictoryScreen } from './ui/VictoryScreen'
 import { RankSystem } from './systems/RankSystem'
@@ -34,6 +35,7 @@ class Game {
   private boss: Boss
   private choiceUI: ChoiceUI
   private pauseUI: PauseUI
+  private introMenuUI: IntroMenuUI
   private hud: HUD
   private victoryScreen: VictoryScreen
   private rankSystem: RankSystem
@@ -44,6 +46,7 @@ class Game {
   private clock = new THREE.Clock()
   private isGameOver = false
   private isVictory = false
+  private isGameStarted = false
   private cameraOffset = new THREE.Vector3(0, 11.5, 13.5) // Dynamic 3D third-person follow
   private nextChoiceThreshold = 2
 
@@ -106,28 +109,40 @@ class Game {
     this.boss = new Boss(this.scene)
     this.choiceUI = new ChoiceUI()
     this.pauseUI = new PauseUI({
-      onRestart: () => {
-        window.location.reload()
-      },
-      onShaderToggle: (mode) => {
-        this.ps1Pass.setShaderMode(mode)
-      },
-      getShaderMode: () => {
-        return this.ps1Pass.getShaderMode()
-      },
+      onResume: () => {},
+      onRestart: () => this.restartRun(),
+      onShaderToggle: (mode) => this.ps1Pass.setShaderMode(mode),
+      getShaderMode: () => this.ps1Pass.getShaderMode(),
     })
     this.hud = new HUD()
     this.victoryScreen = new VictoryScreen()
+    this.introMenuUI = new IntroMenuUI()
     this.rankSystem = new RankSystem()
     this.progressionSystem = new ProgressionSystem(this.scene)
     this.particleSystem = new ParticleSystem(this.scene)
     this.fourthWall = new FourthWall()
-    this.pauseUI = new PauseUI(this.ps1Pass)
 
     ;(window as any).__game = this
 
+    // Check if this run is a quick restart or a fresh page load
+    const hasRestarted = sessionStorage.getItem('polyroot_restarted') === 'true'
+    if (hasRestarted) {
+      sessionStorage.removeItem('polyroot_restarted')
+      this.isGameStarted = true
+    } else {
+      this.isGameStarted = false
+      this.introMenuUI.show(() => {
+        this.isGameStarted = true
+      })
+    }
+
     this.setupMetaEvents()
     this.animate()
+  }
+
+  private restartRun(): void {
+    sessionStorage.setItem('polyroot_restarted', 'true')
+    window.location.reload()
   }
 
   private setupMetaEvents(): void {
@@ -141,8 +156,11 @@ class Game {
     window.addEventListener('keydown', startAudioOnGesture, { once: true })
 
     window.addEventListener('keydown', (e) => {
+      if (e.key === 'Escape' && this.isGameStarted && !this.isGameOver && !this.isVictory && !this.choiceUI.isOpen) {
+        this.pauseUI.toggle()
+      }
       if ((e.key === 'r' || e.key === 'R') && (this.isGameOver || this.isVictory)) {
-        window.location.reload()
+        this.restartRun()
       }
       if (e.key === 'g' || e.key === 'G') {
         FourthWall.triggerA3Glitch()
@@ -160,7 +178,7 @@ class Game {
 
     const dt = Math.min(this.clock.getDelta(), 0.1)
 
-    if (!this.isGameOver && !this.isVictory) {
+    if (this.isGameStarted && !this.isGameOver && !this.isVictory && !this.introMenuUI.isMenuOpen()) {
       if (!this.choiceUI.isOpen && !this.pauseUI.isOpen) {
         this.updateGame(dt)
       }
@@ -178,48 +196,34 @@ class Game {
     // 1. Calculate Component Standing Platform Floor Height
     const floorY = this.motherboard.getSupportHeight(pPos.x, pPos.z, 0.45)
 
-    // 2. Update Player Movement, Jump & Auto-Aim (include Boss as valid plasma target)
-    const speedScale = this.heatingSystem.isPlayerInsideAny ? 0.70 : 1.0
-    const targetEnemies = this.boss.active
-      ? [...this.spawnSystem.instances, { x: this.boss.group.position.x, z: this.boss.group.position.z, active: true, id: -999, radius: 1.4 }]
-      : this.spawnSystem.instances
-    this.player.update(dt, speedScale, targetEnemies, floorY)
+    // 2. Update Player (Movement, Collision Blocking, Dash, and Jump with Roof Support)
+    this.player.update(dt, 1.0, this.spawnSystem.instances, floorY)
 
-    // 3. Physical Motherboard Component Collisions (Solid IC chips & capacitors)
-    const col = this.motherboard.checkCollision(pPos.x, pPos.z, 0.55, this.player.root.group.position.y)
-    if (col.collided) {
-      pPos.x += col.pushX
-      pPos.z += col.pushZ
-    }
-
-    // 3. Dynamic 3D Camera Follow
-    const targetCamX = pPos.x + this.cameraOffset.x
-    const targetCamY = pPos.y + this.cameraOffset.y
-    const targetCamZ = pPos.z + this.cameraOffset.z
-
-    this.camera.position.x += (targetCamX - this.camera.position.x) * Math.min(1.0, dt * 6.0)
-    this.camera.position.y += (targetCamY - this.camera.position.y) * Math.min(1.0, dt * 6.0)
-    this.camera.position.z += (targetCamZ - this.camera.position.z) * Math.min(1.0, dt * 6.0)
+    // 3. 3D Camera Follow (Third-Person Isometric Elevation with Spring Clamping)
+    this.camera.position.x = pPos.x + this.cameraOffset.x
+    this.camera.position.y = Math.max(12.0, pPos.y + this.cameraOffset.y)
+    this.camera.position.z = pPos.z + this.cameraOffset.z
     this.camera.lookAt(pPos.x, pPos.y + 0.8, pPos.z)
 
-    // 4. Update Non-Linear Heating System
-    const { heatedAny, insidePuce } = this.heatingSystem.update(dt, pPos.x, pPos.z, (blownPuce) => {
-      this.handlePuceBoom(blownPuce.x, blownPuce.z)
-    })
+    // 4. Update Heating Solder Pads & Trigger Overclock Choice Modal
+    const { heatedAny, insidePuce } = this.heatingSystem.update(
+      dt,
+      pPos.x,
+      pPos.z,
+      (blownPuce) => {
+        this.handlePuceBoom(blownPuce.x, blownPuce.z)
+      }
+    )
 
-    if (this.heatingSystem.pucesHeatedCount >= this.nextChoiceThreshold && this.nextChoiceThreshold <= 8) {
-      this.nextChoiceThreshold += 2
+    if (heatedAny) {
+      console.log(`[HeatingSystem] Puce heated! Total: ${this.heatingSystem.pucesHeatedCount}/8`)
       this.triggerOverclockChoice()
     }
 
-    // 5. Update Progression & Vacuum Gems
-    this.progressionSystem.update(dt, pPos.x, pPos.z, () => {
-      this.player.heal(1)
-      this.particleSystem.burst({ x: pPos.x, y: 0.5, z: pPos.z }, 4, 0.0, 1.0, 1.0)
-      SoundSystem.playGem()
-    })
+    // 5. Progression & Gem Drops Attraction
+    this.progressionSystem.update(dt, pPos.x, pPos.z)
 
-    // 6. Update Enemies & Projectiles (with physical Motherboard obstacle collisions)
+    // 6. Spawn Cryptos Swarms (Safe distance outside aura, 0.5s holographic telegraph)
     this.spawnSystem.update(
       dt,
       pPos.x,
@@ -436,7 +440,7 @@ class Game {
       kills: this.progressionSystem.kills,
       bossDefeated: true,
     })
-    this.victoryScreen.showVictory(result, () => window.location.reload())
+    this.victoryScreen.showVictory(result, () => this.restartRun())
   }
 
   private handleGameOver(): void {
@@ -446,7 +450,7 @@ class Game {
       kills: this.progressionSystem.kills,
       bossDefeated: false,
     })
-    this.victoryScreen.showGameOver(result, this.heatingSystem.pucesHeatedCount, () => window.location.reload())
+    this.victoryScreen.showGameOver(result, this.heatingSystem.pucesHeatedCount, () => this.restartRun())
   }
 }
 
