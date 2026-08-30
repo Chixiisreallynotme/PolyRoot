@@ -1,6 +1,5 @@
 import { PS1_BEVEL_8PX, PS1_BEVEL_4PX, PS1_DITHER_BG } from './ChoiceUI'
 import { SoundSystem } from '../audio/SoundSystem'
-import { PixelArt } from './PixelArt'
 
 export class IntroMenuUI {
   private container: HTMLDivElement
@@ -51,20 +50,20 @@ export class IntroMenuUI {
         </h1>
         
         <p style="color: #38bdf8; font-size: 12px; margin-bottom: 16px; letter-spacing: 1.5px; font-weight: 700;">
-          OVERCLOCK SURVIVOR &bull; MISSION ÉVASION
+          MISSION EVASION // CARTE MERE PU-8
         </p>
 
         <!-- Lore Story Box -->
         <div style="background: #060a12; background-image: ${PS1_DITHER_BG}; border: 1px solid #00ff8844; clip-path: ${PS1_BEVEL_8PX}; padding: 16px 20px; text-align: left; margin-bottom: 18px; line-height: 1.6; font-size: 12px; color: #cbd5e0;">
-          <div style="color: #facc15; font-weight: 800; font-size: 12px; letter-spacing: 1px; margin-bottom: 6px; display: flex; align-items: center; gap: 8px;">
-            ${PixelArt.skull} HISTOIRE : POURQUOI ROOT EST ICI ?
+          <div style="color: #facc15; font-weight: 800; font-size: 12px; letter-spacing: 1px; margin-bottom: 6px;">
+            CONTEXTE DE MISSION :
           </div>
           <p style="margin: 0 0 8px 0;">
-            <strong style="color: #f8fafc;">Awyen</strong> a essayé de miner de la crypto sur une carte mère de PlayStation 1 d'origine... 
-            Mais suite à une mauvaise manipulation et une violente surcharge de voltage, <strong style="color: #ff5500;">Root</strong> s'est retrouvé téléporté et emprisonné au cœur des circuits imprimés !
+            <strong style="color: #f8fafc;">Awyen</strong> a tente de miner de la cryptomonnaie sur une carte mere de PlayStation 1 modifiee.
+            Suite a une surtension du processeur, <strong style="color: #ff3d00;">Root</strong> s'est retrouve materialise et bloque au sein des circuits integres.
           </p>
           <p style="margin: 0; color: #94a3b8;">
-            Pour s'échapper, Root doit parcourir le substrat, <strong style="color: #00ff88;">surchauffer les 8 puces du processeur</strong> pour provoquer une panne générale du BIOS SOLI, repousser les cryptos hostiles et terrasser le boss <strong style="color: #38bdf8;">CyberLeek</strong> !
+            Pour s'echapper, Root doit parcourir le substrat, <strong style="color: #00ff88;">surchauffer les 8 puces du processeur</strong> pour declencher la defaillance du BIOS SOLI, eliminer les cryptos ennemies et neutraliser <strong style="color: #38bdf8;">CyberLeek</strong>.
           </p>
         </div>
 
@@ -72,8 +71,8 @@ export class IntroMenuUI {
         <div style="display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px; margin-bottom: 22px;">
           
           <div style="background: #080d16; border: 1px solid #1e293b; clip-path: ${PS1_BEVEL_4PX}; padding: 10px 8px; text-align: center;">
-            <div style="font-size: 10px; color: #94a3b8; margin-bottom: 4px; text-transform: uppercase;">DÉPLACEMENTS</div>
-            <div style="font-size: 14px; font-weight: 900; color: #00ff88; letter-spacing: 1px;">[ZQSD] / [FLÈCHES]</div>
+            <div style="font-size: 10px; color: #94a3b8; margin-bottom: 4px; text-transform: uppercase;">DEPLACEMENTS</div>
+            <div style="font-size: 14px; font-weight: 900; color: #00ff88; letter-spacing: 1px;">[ZQSD] / [FLECHES]</div>
           </div>
 
           <div style="background: #080d16; border: 1px solid #1e293b; clip-path: ${PS1_BEVEL_4PX}; padding: 10px 8px; text-align: center;">
@@ -82,7 +81,7 @@ export class IntroMenuUI {
           </div>
 
           <div style="background: #080d16; border: 1px solid #1e293b; clip-path: ${PS1_BEVEL_4PX}; padding: 10px 8px; text-align: center;">
-            <div style="font-size: 10px; color: #94a3b8; margin-bottom: 4px; text-transform: uppercase;">DASH & VITESSE</div>
+            <div style="font-size: 10px; color: #94a3b8; margin-bottom: 4px; text-transform: uppercase;">DASH CYBERNETIQUE</div>
             <div style="font-size: 14px; font-weight: 900; color: #facc15; letter-spacing: 1px;">[MAJ / SHIFT]</div>
           </div>
 
@@ -90,13 +89,12 @@ export class IntroMenuUI {
 
         <!-- Launch CTA Button -->
         <button id="btn-start-game" style="background: #00ff88; color: #050b14; border: none; padding: 14px 44px; font-size: 16px; font-weight: 900; font-family: inherit; clip-path: ${PS1_BEVEL_4PX}; cursor: pointer; transition: transform 0.1s, box-shadow 0.1s; box-shadow: 0 0 24px rgba(0,255,136,0.6); letter-spacing: 1.5px;">
-          [ESPACE / ENTRÉE] DÉMARRER L'ÉVASION
+          [ESPACE / ENTREE] DEMARRER L'EVASION
         </button>
 
         <div style="margin-top: 16px; font-size: 11px; color: #64748b; border-top: 1px solid #1e293b; padding-top: 10px; letter-spacing: 1px; display: flex; justify-content: space-between;">
-          <span>MUSIQUE : [M] ACTIVER/COUPER</span>
-          <span>PAUSE : [ÉCHAP]</span>
-          <span>60 FPS SOLID</span>
+          <span>AUDIO : [M] BASCULER BGM</span>
+          <span>PAUSE : [ECHAP]</span>
         </div>
       </div>
     `

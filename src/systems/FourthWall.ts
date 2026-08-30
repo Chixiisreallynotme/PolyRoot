@@ -33,7 +33,7 @@ export class FourthWall {
     if (this.cyberLeekTriggered) return
     this.cyberLeekTriggered = true
     console.log(
-      '%c⚡ PU-8 KERNEL: Cycle benchmark telemetry logged: ' + timeFormatted + ' — Subsystem stable.',
+      '%c[PU-8 KERNEL] Cycle benchmark telemetry logged: ' + timeFormatted + ' — Subsystem stable.',
       'color:#00ff88;background:#0d1821;padding:4px;font-weight:bold;font-family:monospace;'
     )
     console.log('[4th-wall] cyberleek — Kernel restore cycle benchmark telemetry dispatched')

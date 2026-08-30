@@ -3,7 +3,7 @@ import { RubberHoseRig } from '../render/RubberHoseRig'
 
 // Root: Iconic orange chibi 3D mascot (media_1788110401238.png & media_1788110314292.png)
 // 100% Volumetric 3D Geometry: Spherical chibi skull, inset 3D anime eyes with double spherical
-// white glossy highlights, recessed 3D mouth with pink tongue, and 3D sculpted peace sign ✌️ fingers.
+// white glossy highlights, recessed 3D mouth with pink tongue, and 3D sculpted peace sign fingers.
 
 export class Root {
   public readonly group: THREE.Group
@@ -168,7 +168,7 @@ export class Root {
     this.leftArm.add(leftHand)
     this.bodyGroup.add(this.leftArm)
 
-    // 8. Right Arm with 3D Peace Sign ✌️ Fingers (Matching media_1788110401238.png)
+    // 8. Right Arm with 3D Peace Sign Fingers (Matching media_1788110401238.png)
     this.rightArm = new THREE.Group()
     this.rightArm.position.set(0.46, 0.82, 0)
     const rightArmMesh = new THREE.Mesh(armGeo, orangeMat)
@@ -248,7 +248,7 @@ export class Root {
   }
 
   lookAtCamera(duration = 0.18): void {
-    console.log('[4th-wall] lookAt — Root salue la caméra avec son peace sign ✌️')
+    console.log('[4th-wall] lookAt — Root salue la camera')
     this.headGroup.scale.set(1.1, 1.1, 1.1)
     setTimeout(() => {
       this.headGroup.scale.set(1.0, 1.0, 1.0)

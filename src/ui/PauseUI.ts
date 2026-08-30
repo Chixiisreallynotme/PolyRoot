@@ -313,7 +313,7 @@ export class PauseUI {
     footer.style.borderTop = '1px solid #1e293b'
     footer.style.paddingTop = '12px'
     footer.style.letterSpacing = '1px'
-    footer.innerHTML = `HARDWARE BUS STATUS: 60 FPS p95 // MEMORY CARD 1: OK`
+    footer.innerHTML = `HARDWARE BUS: ACTIF // MEMOIRE: OK`
     inner.appendChild(footer)
 
     this.panel.appendChild(inner)
